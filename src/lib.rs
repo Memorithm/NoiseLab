@@ -12,16 +12,16 @@ pub mod resonance;
 pub mod scirust_bridge;
 
 pub use calibration::{
-    CalibrationError, DrivenLinearOscillator, LinearResonanceCalibration, ResponseMeasurement,
-    measure_steady_state_displacement_amplitude, sweep_linear_resonance,
+    measure_steady_state_displacement_amplitude, sweep_linear_resonance, CalibrationError,
+    DrivenLinearOscillator, LinearResonanceCalibration, ResponseMeasurement,
 };
 pub use resonance::{
-    CandidateEstimate, InteriorPeak, OperatingPoint, ResonanceInputError, SearchConfig, SearchError,
-    SearchResult, SweepSample, detect_interior_response_peak, kramers_escape_rate,
+    detect_interior_response_peak, kramers_escape_rate,
     linear_displacement_resonance_angular_frequency, matched_kramers_noise_intensity,
-    search_operating_points, stochastic_resonance_target_rate,
+    search_operating_points, stochastic_resonance_target_rate, CandidateEstimate, InteriorPeak,
+    OperatingPoint, ResonanceInputError, SearchConfig, SearchError, SearchResult, SweepSample,
 };
 pub use scirust_bridge::{
-    GaussianNoise, NoiseInputError, ScirustSpectralSignature, gaussian_white_noise,
-    ornstein_uhlenbeck_path, spectral_signature,
+    gaussian_white_noise, ornstein_uhlenbeck_path, spectral_signature, GaussianNoise,
+    NoiseInputError, ScirustSpectralSignature,
 };
