@@ -5,13 +5,13 @@
 //! `epsilon * dx/dt = x - x^3/3 - y`
 //! `dy/dt = x + a + sigma * xi(t)`
 //!
-//! with Gaussian white noise on the slow variable.  In the deterministic
-//! excitable regime `a > 1`, the stable fixed point does not spike.  Noise can
+//! with Gaussian white noise on the slow variable. In the deterministic
+//! excitable regime `a > 1`, the stable fixed point does not spike. Noise can
 //! trigger large excursions; coherence resonance is the non-monotone regime in
 //! which the inter-spike intervals become most regular at an intermediate noise
 //! amplitude.
 //!
-//! NoiseLab borrows [`scirust_sim::SplitMix64`] for all stochastic draws.  The
+//! NoiseLab borrows [`scirust_sim::SplitMix64`] for all stochastic draws. The
 //! explicit stochastic step used here is deliberately local to this calibration
 //! experiment; it is not presented as a general-purpose SDE solver.
 
@@ -26,7 +26,7 @@ const MAX_STEPS: usize = 10_000_000;
 pub struct FitzHughNagumo {
     /// Positive fast/slow time-scale ratio.
     pub epsilon: f64,
-    /// Excitability parameter.  This calibration requires `a > 1`.
+    /// Excitability parameter. This calibration requires `a > 1`.
     pub a: f64,
 }
 
@@ -205,7 +205,14 @@ pub enum FhnError {
     InvalidNoiseAmplitude { index: usize },
     /// State integration left the finite floating-point domain.
     NonFiniteState { step: usize },
-    /// A realization did not produce enough spikes after burn-in.
+    /// A standalone spike train was malformed or too short for CV measurement.
+    InvalidSpikeTrain {
+        /// Number of spikes actually supplied.
+        observed: usize,
+        /// Minimum number of spikes requested.
+        required: usize,
+    },
+    /// A realization in a calibrated sweep did not produce enough spikes.
     InsufficientSpikes {
         noise_amplitude: f64,
         seed: u64,
@@ -249,6 +256,10 @@ impl Display for FhnError {
             Self::NonFiniteState { step } => {
                 write!(formatter, "FHN state became non-finite at step {step}")
             }
+            Self::InvalidSpikeTrain { observed, required } => write!(
+                formatter,
+                "spike train has {observed} usable spikes, fewer than required {required}, or contains non-increasing/non-finite times"
+            ),
             Self::InsufficientSpikes {
                 noise_amplitude,
                 seed,
@@ -270,7 +281,7 @@ impl Error for FhnError {}
 /// Simulate one FHN realization and extract post-burn-in spikes.
 ///
 /// The discretization is explicit Euler for the fast deterministic equation and
-/// Euler-Maruyama for additive noise on the slow variable.  Gaussian draws come
+/// Euler-Maruyama for additive noise on the slow variable. Gaussian draws come
 /// from SciRust's deterministic [`SplitMix64`].
 pub fn simulate_fhn_spikes(
     model: FitzHughNagumo,
@@ -322,10 +333,13 @@ pub fn inter_spike_stats(
     if min_spikes < 3 {
         return Err(FhnError::TooFewRequiredSpikes { min_spikes });
     }
-    if train.spike_times.len() < min_spikes {
-        return Err(FhnError::InsufficientSpikes {
-            noise_amplitude: f64::NAN,
-            seed: 0,
+    let valid_times = train.spike_times.iter().all(|time| time.is_finite())
+        && train
+            .spike_times
+            .windows(2)
+            .all(|pair| pair[1] > pair[0]);
+    if train.spike_times.len() < min_spikes || !valid_times {
+        return Err(FhnError::InvalidSpikeTrain {
             observed: train.spike_times.len(),
             required: min_spikes,
         });
@@ -355,7 +369,7 @@ pub fn inter_spike_stats(
 
 /// Sweep noise amplitude and seek an uncertainty-separated interior CV minimum.
 ///
-/// Lower inter-spike CV means more regular noise-induced excursions.  The
+/// Lower inter-spike CV means more regular noise-induced excursions. The
 /// returned minimum is evidence for a sampled non-monotone regularity optimum;
 /// it does not by itself prove a universal coherence-resonance law.
 pub fn calibrate_coherence_resonance(
@@ -422,9 +436,11 @@ fn detect_coherence_minimum(
     responses: &[CoherenceResponse],
     uncertainty_weight: f64,
 ) -> Option<CoherenceMinimum> {
-    let minimum = responses[1..responses.len() - 1]
+    let (index, minimum) = responses[1..responses.len() - 1]
         .iter()
-        .min_by(|left, right| left.mean_cv.total_cmp(&right.mean_cv))?;
+        .enumerate()
+        .min_by(|(_, left), (_, right)| left.mean_cv.total_cmp(&right.mean_cv))
+        .map(|(offset, response)| (offset + 1, response))?;
     let minimum_se = standard_error(minimum);
     let conservative_minimum = minimum.mean_cv + uncertainty_weight * minimum_se;
     let left = &responses[0];
@@ -434,9 +450,6 @@ fn detect_coherence_minimum(
     let conservative_edge = conservative_left.min(conservative_right);
     let conservative_separation = conservative_edge - conservative_minimum;
 
-    let index = responses
-        .iter()
-        .position(|response| response.noise_amplitude == minimum.noise_amplitude)?;
     let strict_local_minimum = minimum.mean_cv < responses[index - 1].mean_cv
         && minimum.mean_cv < responses[index + 1].mean_cv;
     if !strict_local_minimum || conservative_separation <= 0.0 {
@@ -549,5 +562,10 @@ mod tests {
             calibrate_coherence_resonance(model(), run(), &[0.1, 0.1, 0.2], &[1], 1.0)
                 .is_err()
         );
+        let malformed = FhnSpikeTrain {
+            spike_times: vec![1.0, 0.5, 2.0],
+            final_state: [0.0, 0.0],
+        };
+        assert!(inter_spike_stats(&malformed, 3).is_err());
     }
 }
