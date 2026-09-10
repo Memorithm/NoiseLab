@@ -21,8 +21,9 @@ jobs:
           toolchain: 1.89.0
           components: rustfmt
       - name: Replace grid-sensitive prominence with uncertainty-separated evidence
-        shell: python
+        shell: bash
         run: |
+          python3 - <<'PY'
           from pathlib import Path
           path = Path("src/langevin.rs")
           text = path.read_text()
@@ -59,6 +60,7 @@ jobs:
           if old not in text:
               raise SystemExit("expected Langevin test block not found; refusing blind patch")
           path.write_text(text.replace(old, new, 1))
+          PY
       - name: Format patched source
         run: cargo +1.89.0 fmt --all
       - name: Commit patch
