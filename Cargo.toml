@@ -1,0 +1,15 @@
+[package]
+name = "noiselab"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+description = "Rust research bench for reproducible noise generation, characterization, injection, and resonance studies"
+license-file = "LICENSE.md"
+repository = "https://github.com/Memorithm/NoiseLab"
+
+[dependencies]
+scirust-sim = { git = "https://github.com/Memorithm/scirust.git", rev = "f57d598bf03e5dfb16ec6423e4e43105a77540d3" }
+scirust-signal = { git = "https://github.com/Memorithm/scirust.git", rev = "f57d598bf03e5dfb16ec6423e4e43105a77540d3" }
+
+[lib]
+path = "src/lib.rs"
