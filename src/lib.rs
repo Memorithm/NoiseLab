@@ -9,6 +9,7 @@
 
 pub mod calibration;
 pub mod evidence;
+pub mod fhn;
 pub mod langevin;
 pub mod resonance;
 pub mod scirust_bridge;
@@ -18,6 +19,11 @@ pub use calibration::{
     DrivenLinearOscillator, LinearResonanceCalibration, ResponseMeasurement,
 };
 pub use evidence::{detect_edge_separated_peak, EdgeSeparatedPeak, EvidenceError};
+pub use fhn::{
+    calibrate_coherence_resonance, inter_spike_stats, simulate_fhn_spikes,
+    CoherenceCalibration, CoherenceMinimum, CoherenceResponse, FhnError, FhnRun, FhnSpikeTrain,
+    FitzHughNagumo, InterSpikeStats,
+};
 pub use langevin::{
     calibrate_kramers_matching, coherent_switching_response, simulate_double_well,
     CoherentResponse, DoubleWellLangevin, KramersCalibration, LangevinError, LangevinRun,
