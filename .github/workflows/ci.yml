@@ -20,8 +20,8 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
       - name: Check
-        run: cargo check --all-targets --locked
+        run: cargo check --all-targets
       - name: Clippy
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
       - name: Test
-        run: cargo test --locked
+        run: cargo test
