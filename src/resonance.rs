@@ -481,12 +481,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(result.best.unwrap().point.amplitude, 2.0);
-        assert!(
-            result
-                .candidates
-                .iter()
-                .all(|candidate| candidate.sample_stddev == 0.0)
-        );
+        assert!(result
+            .candidates
+            .iter()
+            .all(|candidate| candidate.sample_stddev == 0.0));
     }
 
     #[test]
