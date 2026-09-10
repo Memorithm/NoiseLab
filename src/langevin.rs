@@ -122,8 +122,7 @@ impl DoubleWellLangevin {
 
     fn drift(self, t: f64, x: f64) -> f64 {
         self.a * x - self.b * x * x * x
-            + self.forcing_amplitude
-                * (TAU * self.forcing_frequency_hz * t + self.phase_rad).cos()
+            + self.forcing_amplitude * (TAU * self.forcing_frequency_hz * t + self.phase_rad).cos()
     }
 }
 
@@ -378,13 +377,8 @@ pub fn calibrate_kramers_matching(
         }
         let mut amplitudes = Vec::with_capacity(seeds.len());
         for &seed in seeds {
-            let trajectory = simulate_double_well(
-                model,
-                noise_intensity,
-                -model.well_location(),
-                run,
-                seed,
-            )?;
+            let trajectory =
+                simulate_double_well(model, noise_intensity, -model.well_location(), run, seed)?;
             amplitudes.push(
                 coherent_switching_response(model, &trajectory, run.burn_in_steps)?.amplitude,
             );
@@ -470,7 +464,10 @@ mod tests {
         )
         .unwrap()
         .unwrap();
-        assert!(predicted > 0.2 && predicted < 0.4, "predicted D={predicted}");
+        assert!(
+            predicted > 0.2 && predicted < 0.4,
+            "predicted D={predicted}"
+        );
     }
 
     #[test]
