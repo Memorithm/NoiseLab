@@ -6,7 +6,7 @@
 //! upstream primitives.
 
 use scirust_signal::{hanning, psd_centroid, psd_flatness, psd_spread, welch_psd};
-use scirust_sim::{SplitMix64, stochastic::ou_path};
+use scirust_sim::{stochastic::ou_path, SplitMix64};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
@@ -33,7 +33,10 @@ impl Display for NoiseInputError {
             Self::NonFinite(name) => write!(f, "{name} must be finite"),
             Self::NonPositive(name) => write!(f, "{name} must be strictly positive"),
             Self::TooManySamples { requested, maximum } => {
-                write!(f, "requested {requested} samples exceeds safety maximum {maximum}")
+                write!(
+                    f,
+                    "requested {requested} samples exceeds safety maximum {maximum}"
+                )
             }
             Self::InvalidSpectrumRequest(message) => f.write_str(message),
             Self::Upstream(message) => write!(f, "SciRust rejected request: {message}"),
