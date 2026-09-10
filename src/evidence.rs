@@ -45,10 +45,12 @@ pub enum EvidenceError {
 impl Display for EvidenceError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::SweepTooShort => formatter.write_str("response sweep needs at least three points"),
-            Self::InvalidUncertaintyWeight => formatter.write_str(
-                "uncertainty weight must be finite and non-negative",
-            ),
+            Self::SweepTooShort => {
+                formatter.write_str("response sweep needs at least three points")
+            }
+            Self::InvalidUncertaintyWeight => {
+                formatter.write_str("uncertainty weight must be finite and non-negative")
+            }
             Self::NonFiniteResponse { index } => {
                 write!(formatter, "response {index} contains a non-finite value")
             }
@@ -108,8 +110,7 @@ pub fn detect_edge_separated_peak(
         .expect("slice length is guaranteed non-zero");
 
     let peak_se = standard_error(peak);
-    let conservative_peak =
-        peak.mean_coherent_amplitude - uncertainty_weight * peak_se;
+    let conservative_peak = peak.mean_coherent_amplitude - uncertainty_weight * peak_se;
     let left = &responses[0];
     let right = &responses[responses.len() - 1];
     let conservative_left =
