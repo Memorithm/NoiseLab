@@ -1,15 +1,8 @@
 //! Resonance and system-dependent operating-point search.
 //!
-//! This module deliberately separates three concepts:
-//!
-//! - an **operating-point optimum**: the best measured candidate for a declared
-//!   objective and experiment;
-//! - an **interior response peak**: evidence of a non-monotone response along
-//!   a one-dimensional sweep;
-//! - an analytic **resonance condition** that is valid only for the model from
-//!   which it was derived.
-//!
-//! None of these is promoted to a universal "perfect moment" law.
+//! NoiseLab keeps an operating-point optimum, an interior response peak, and
+//! a model-derived resonance condition as distinct evidence classes. None is
+//! promoted to a universal "perfect moment" law.
 
 use std::f64::consts::FRAC_1_SQRT_2;
 
@@ -27,7 +20,7 @@ pub struct OperatingPoint {
 }
 
 impl OperatingPoint {
-    /// Construct a finite, physically ordered operating point.
+    /// Construct a finite operating point.
     pub fn new(
         onset_time: f64,
         amplitude: f64,
@@ -84,8 +77,7 @@ pub struct SearchConfig {
     /// Penalty multiplier applied to the standard error when ranking.
     ///
     /// The score is `mean_uplift - uncertainty_weight * standard_error`.
-    /// This is a conservative ranking heuristic, not automatically a formal
-    /// confidence bound.
+    /// This is a ranking heuristic, not automatically a confidence bound.
     pub uncertainty_weight: f64,
     /// If true, every paired replicate must improve on its matched control.
     pub require_positive_worst_case: bool,
@@ -109,12 +101,7 @@ impl SearchConfig {
                 required: 1,
             });
         }
-        if !self.uncertainty_weight.is_finite() {
-            return Err(ResonanceInputError::NonFinite("uncertainty_weight"));
-        }
-        if self.uncertainty_weight < 0.0 {
-            return Err(ResonanceInputError::Negative("uncertainty_weight"));
-        }
+        require_nonnegative("uncertainty_weight", self.uncertainty_weight)?;
         Ok(self)
     }
 }
@@ -149,12 +136,27 @@ pub struct SearchResult {
     pub best: Option<CandidateEstimate>,
 }
 
+/// Failures that can occur while evaluating a paired operating-point search.
+#[derive(Debug)]
+pub enum SearchError<E> {
+    /// Invalid search configuration.
+    Input(ResonanceInputError),
+    /// Target evaluator returned its own error.
+    Evaluation(E),
+    /// Target evaluator returned NaN or infinity.
+    NonFiniteUtility {
+        /// `None` identifies the control; `Some(i)` identifies candidate `i`.
+        candidate_index: Option<usize>,
+        /// Seed of the failed paired replicate.
+        seed: u64,
+    },
+}
+
 /// Search candidate operating points using matched control/candidate seeds.
 ///
 /// The evaluator receives `None` for the control and `Some(point)` for an
 /// intervention. Reusing each seed for both sides is a common-random-numbers
-/// design: stochastic background variation is paired rather than needlessly
-/// added to the candidate-minus-control comparison.
+/// design that pairs stochastic background variation.
 pub fn search_operating_points<F, E>(
     candidates: &[OperatingPoint],
     seeds: &[u64],
@@ -166,15 +168,13 @@ where
 {
     let config = config.validate().map_err(SearchError::Input)?;
     if seeds.len() < config.min_replicates {
-        return Err(SearchError::Input(
-            ResonanceInputError::TooFewReplicates {
-                supplied: seeds.len(),
-                required: config.min_replicates,
-            },
-        ));
+        return Err(SearchError::Input(ResonanceInputError::TooFewReplicates {
+            supplied: seeds.len(),
+            required: config.min_replicates,
+        }));
     }
 
-    let mut control_scores = Vec::with_capacity(seeds.len());
+    let mut controls = Vec::with_capacity(seeds.len());
     for &seed in seeds {
         let score = evaluate(None, seed).map_err(SearchError::Evaluation)?;
         if !score.is_finite() {
@@ -183,22 +183,22 @@ where
                 seed,
             });
         }
-        control_scores.push(score);
+        controls.push(score);
     }
-    let control_mean = mean(&control_scores);
+    let control_mean = mean(&controls);
 
     let mut estimates = Vec::with_capacity(candidates.len());
     for (candidate_index, &point) in candidates.iter().enumerate() {
         let mut uplifts = Vec::with_capacity(seeds.len());
-        for (&seed, &control) in seeds.iter().zip(&control_scores) {
-            let candidate = evaluate(Some(point), seed).map_err(SearchError::Evaluation)?;
-            if !candidate.is_finite() {
+        for (&seed, &control) in seeds.iter().zip(&controls) {
+            let score = evaluate(Some(point), seed).map_err(SearchError::Evaluation)?;
+            if !score.is_finite() {
                 return Err(SearchError::NonFiniteUtility {
                     candidate_index: Some(candidate_index),
                     seed,
                 });
             }
-            uplifts.push(candidate - control);
+            uplifts.push(score - control);
         }
 
         let mean_uplift = mean(&uplifts);
@@ -231,22 +231,6 @@ where
     })
 }
 
-/// Failures that can occur while evaluating a paired operating-point search.
-#[derive(Debug)]
-pub enum SearchError<E> {
-    /// Invalid search configuration.
-    Input(ResonanceInputError),
-    /// Target evaluator returned its own error.
-    Evaluation(E),
-    /// Target evaluator returned NaN or infinity.
-    NonFiniteUtility {
-        /// `None` identifies the control; `Some(i)` identifies candidate `i`.
-        candidate_index: Option<usize>,
-        /// Seed of the failed paired replicate.
-        seed: u64,
-    },
-}
-
 /// One sample from a scalar response sweep.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SweepSample {
@@ -269,9 +253,8 @@ pub struct InteriorPeak {
 
 /// Detect the strongest sampled interior local peak of a one-dimensional sweep.
 ///
-/// Finding such a peak supports the statement "this sampled response is
-/// non-monotone and has an interior maximum". It does not by itself identify
-/// the physical mechanism as resonance.
+/// This supports only the statement that a sampled response is non-monotone
+/// with an interior local maximum; it does not identify the mechanism.
 pub fn detect_interior_response_peak(
     samples: &[SweepSample],
     minimum_prominence: f64,
@@ -279,12 +262,7 @@ pub fn detect_interior_response_peak(
     if samples.len() < 3 {
         return Err(ResonanceInputError::SweepTooShort);
     }
-    if !minimum_prominence.is_finite() {
-        return Err(ResonanceInputError::NonFinite("minimum_prominence"));
-    }
-    if minimum_prominence < 0.0 {
-        return Err(ResonanceInputError::Negative("minimum_prominence"));
-    }
+    require_nonnegative("minimum_prominence", minimum_prominence)?;
 
     let mut ordered = samples.to_vec();
     for sample in &ordered {
@@ -306,8 +284,7 @@ pub fn detect_interior_response_peak(
     let mut best: Option<InteriorPeak> = None;
     for window in ordered.windows(3) {
         let [left, center, right] = [window[0], window[1], window[2]];
-        let shoulder = left.response.max(right.response);
-        let prominence = center.response - shoulder;
+        let prominence = center.response - left.response.max(right.response);
         if prominence >= minimum_prominence
             && center.response > left.response
             && center.response > right.response
@@ -325,14 +302,11 @@ pub fn detect_interior_response_peak(
     Ok(best)
 }
 
-/// Displacement-amplitude resonance frequency for the standard linearly
-/// damped harmonic oscillator.
+/// Displacement-amplitude resonance frequency for a linearly damped oscillator.
 ///
 /// For `x'' + 2*zeta*omega_n*x' + omega_n^2*x = F*cos(omega*t)/m`, the
 /// steady-state displacement amplitude peaks at
 /// `omega_r = omega_n * sqrt(1 - 2*zeta^2)` when `zeta < 1/sqrt(2)`.
-/// At and above that damping threshold there is no non-zero-frequency
-/// displacement-amplitude peak of this form.
 pub fn linear_displacement_resonance_angular_frequency(
     omega_n: f64,
     damping_ratio: f64,
@@ -347,11 +321,10 @@ pub fn linear_displacement_resonance_angular_frequency(
     ))
 }
 
-/// Simplified weak-noise Kramers escape-rate model
-/// `r(D) = prefactor_rate * exp(-barrier / D)`.
+/// Simplified weak-noise Kramers rate `r(D) = r0 * exp(-barrier / D)`.
 ///
-/// `barrier` and `noise_intensity` must use the same energy-like scale. This is
-/// a model formula, not a universal escape law outside its regime.
+/// `barrier` and `noise_intensity` must use the same energy-like scale. This
+/// is a model formula and is not assumed outside its validity regime.
 pub fn kramers_escape_rate(
     barrier: f64,
     noise_intensity: f64,
@@ -365,10 +338,8 @@ pub fn kramers_escape_rate(
 
 /// Classical symmetric-bistable stochastic-resonance rate-matching target.
 ///
-/// The common adiabatic heuristic asks for approximately one well-to-well
-/// switch per half forcing period, hence `r_target ~= 2 * f_signal`.
-/// More strongly driven, non-adiabatic or asymmetric systems require direct
-/// evaluation rather than assuming this matching rule.
+/// The adiabatic heuristic asks for approximately one switch per half forcing
+/// period, hence `r_target ~= 2 * f_signal`.
 pub fn stochastic_resonance_target_rate(
     signal_frequency_hz: f64,
 ) -> Result<f64, ResonanceInputError> {
@@ -376,12 +347,10 @@ pub fn stochastic_resonance_target_rate(
     Ok(2.0 * signal_frequency_hz)
 }
 
-/// Solve the simplified Kramers model for the noise intensity whose escape rate
-/// matches the classical stochastic-resonance half-period heuristic.
+/// Solve the simplified Kramers model for the classical half-period target.
 ///
-/// Returns `None` when the requested target rate is at or above the model's
-/// prefactor rate, for which no finite positive `D` solves
-/// `prefactor_rate * exp(-barrier / D) = target_rate`.
+/// Returns `None` when the target rate is at or above the model prefactor, for
+/// which no finite positive intensity solves the declared equation.
 pub fn matched_kramers_noise_intensity(
     barrier: f64,
     prefactor_rate: f64,
@@ -495,9 +464,8 @@ mod tests {
 
     #[test]
     fn paired_search_cancels_seed_dependent_background() {
-        let candidates = [1.0, 2.0, 3.0].map(|amplitude| {
-            OperatingPoint::new(0.0, amplitude, 0.0, 0.0).unwrap()
-        });
+        let candidates =
+            [1.0, 2.0, 3.0].map(|amplitude| OperatingPoint::new(0.0, amplitude, 0.0, 0.0).unwrap());
         let seeds = [11, 12, 13, 14, 15];
         let result = search_operating_points(
             &candidates,
@@ -513,10 +481,12 @@ mod tests {
         )
         .unwrap();
         assert_eq!(result.best.unwrap().point.amplitude, 2.0);
-        assert!(result
-            .candidates
-            .iter()
-            .all(|candidate| candidate.sample_stddev == 0.0));
+        assert!(
+            result
+                .candidates
+                .iter()
+                .all(|candidate| candidate.sample_stddev == 0.0)
+        );
     }
 
     #[test]
@@ -543,7 +513,9 @@ mod tests {
             &[1, 2, 3],
             SearchConfig::default(),
             |point, _seed| -> Result<f64, ()> {
-                Ok(apd_snr(point.map(|candidate| candidate.amplitude).unwrap_or(1.0)))
+                Ok(apd_snr(
+                    point.map(|candidate| candidate.amplitude).unwrap_or(1.0),
+                ))
             },
         )
         .unwrap();
