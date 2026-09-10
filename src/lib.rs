@@ -7,8 +7,15 @@
 
 #![forbid(unsafe_code)]
 
+pub mod resonance;
 pub mod scirust_bridge;
 
+pub use resonance::{
+    detect_interior_response_peak, kramers_escape_rate,
+    linear_displacement_resonance_angular_frequency, matched_kramers_noise_intensity,
+    search_operating_points, stochastic_resonance_target_rate, CandidateEstimate, InteriorPeak,
+    OperatingPoint, ResonanceInputError, SearchConfig, SearchError, SearchResult, SweepSample,
+};
 pub use scirust_bridge::{
     gaussian_white_noise, ornstein_uhlenbeck_path, spectral_signature, GaussianNoise,
     NoiseInputError, ScirustSpectralSignature,
