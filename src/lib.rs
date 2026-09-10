@@ -10,6 +10,6 @@
 pub mod scirust_bridge;
 
 pub use scirust_bridge::{
-    GaussianNoise, NoiseInputError, ScirustSpectralSignature, gaussian_white_noise,
-    ornstein_uhlenbeck_path, spectral_signature,
+    gaussian_white_noise, ornstein_uhlenbeck_path, spectral_signature, GaussianNoise,
+    NoiseInputError, ScirustSpectralSignature,
 };
