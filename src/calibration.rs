@@ -5,9 +5,9 @@
 //! on systems whose best operating point is unknown.
 
 use crate::resonance::{
-    InteriorPeak, ResonanceInputError, SweepSample, detect_interior_response_peak,
+    detect_interior_response_peak, InteriorPeak, ResonanceInputError, SweepSample,
 };
-use scirust_sim::{System, simulate};
+use scirust_sim::{simulate, System};
 use std::f64::consts::TAU;
 
 /// A harmonically driven, linearly damped oscillator in normalized form:
@@ -59,8 +59,7 @@ impl DrivenLinearOscillator {
     /// Closed-form steady-state displacement amplitude for this linear model.
     pub fn analytic_steady_state_amplitude(self) -> f64 {
         let detuning = self.omega_n * self.omega_n - self.forcing_omega * self.forcing_omega;
-        let damping =
-            2.0 * self.damping_ratio * self.omega_n * self.forcing_omega;
+        let damping = 2.0 * self.damping_ratio * self.omega_n * self.forcing_omega;
         self.forcing_acceleration / (detuning * detuning + damping * damping).sqrt()
     }
 }
@@ -213,12 +212,8 @@ pub fn sweep_linear_resonance(
 
     let mut sweep = Vec::with_capacity(drive_omegas.len());
     for &drive_omega in drive_omegas {
-        let oscillator = DrivenLinearOscillator::new(
-            omega_n,
-            damping_ratio,
-            forcing_acceleration,
-            drive_omega,
-        )?;
+        let oscillator =
+            DrivenLinearOscillator::new(omega_n, damping_ratio, forcing_acceleration, drive_omega)?;
         let response = measure_steady_state_displacement_amplitude(oscillator, settings)?;
         sweep.push(SweepSample {
             coordinate: drive_omega,
@@ -260,11 +255,9 @@ mod tests {
     #[test]
     fn numerical_amplitude_matches_linear_closed_form_away_from_transient() {
         let oscillator = DrivenLinearOscillator::new(10.0, 0.2, 1.0, 8.0).unwrap();
-        let measured = measure_steady_state_displacement_amplitude(
-            oscillator,
-            ResponseMeasurement::default(),
-        )
-        .unwrap();
+        let measured =
+            measure_steady_state_displacement_amplitude(oscillator, ResponseMeasurement::default())
+                .unwrap();
         let expected = oscillator.analytic_steady_state_amplitude();
         let relative_error = (measured - expected).abs() / expected;
         assert!(
