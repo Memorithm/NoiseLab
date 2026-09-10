@@ -8,6 +8,7 @@
 #![forbid(unsafe_code)]
 
 pub mod calibration;
+pub mod evidence;
 pub mod langevin;
 pub mod resonance;
 pub mod scirust_bridge;
@@ -16,6 +17,7 @@ pub use calibration::{
     measure_steady_state_displacement_amplitude, sweep_linear_resonance, CalibrationError,
     DrivenLinearOscillator, LinearResonanceCalibration, ResponseMeasurement,
 };
+pub use evidence::{detect_edge_separated_peak, EdgeSeparatedPeak, EvidenceError};
 pub use langevin::{
     calibrate_kramers_matching, coherent_switching_response, simulate_double_well,
     CoherentResponse, DoubleWellLangevin, KramersCalibration, LangevinError, LangevinRun,
