@@ -7,9 +7,14 @@
 
 #![forbid(unsafe_code)]
 
+pub mod calibration;
 pub mod resonance;
 pub mod scirust_bridge;
 
+pub use calibration::{
+    measure_steady_state_displacement_amplitude, sweep_linear_resonance, CalibrationError,
+    DrivenLinearOscillator, LinearResonanceCalibration, ResponseMeasurement,
+};
 pub use resonance::{
     detect_interior_response_peak, kramers_escape_rate,
     linear_displacement_resonance_angular_frequency, matched_kramers_noise_intensity,
