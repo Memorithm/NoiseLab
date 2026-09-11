@@ -18,18 +18,26 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - name: Capture Clippy diagnostics
+      - name: Capture concise Clippy diagnostics
         run: |
           set +e
           cargo clippy -- -D warnings > /tmp/clippy.log 2>&1
           status=$?
-          cat /tmp/clippy.log
-          cp /tmp/clippy.log clippy-diagnostics.txt
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('/tmp/clippy.log').read_text(errors='replace').splitlines()
+          keep=[]
+          for i,line in enumerate(text):
+              if 'error:' in line or 'warning:' in line or ' --> ' in line or 'help:' in line:
+                  keep.extend(text[max(0,i-1):min(len(text),i+3)])
+          Path('clippy-diagnostics.txt').write_text('\n'.join(dict.fromkeys(keep))+'\n')
+          PY
           echo "CLIPPY_STATUS=$status" >> clippy-diagnostics.txt
+          cat clippy-diagnostics.txt
       - name: Commit branch-only diagnostic
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add clippy-diagnostics.txt
-          git commit -m "ci: capture clippy diagnostic" || exit 0
+          git commit -m "ci: narrow clippy diagnostic" || exit 0
           git push origin HEAD:feat/fhn-stage0-executable-preflight
