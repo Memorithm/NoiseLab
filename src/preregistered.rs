@@ -37,6 +37,11 @@ pub const FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT: f64 = 2.0;
 /// Broad preregistered acceptance interval for the sampled calibration coordinate.
 pub const FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL: [f64; 2] = [0.03, 0.20];
 
+const _: () = {
+    assert!(FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[0]
+        <= FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[1]);
+};
+
 /// Fully materialized Stage 0 v2 primary-regime inputs.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BistableStage0V2 {
@@ -130,10 +135,6 @@ impl FhnCoherenceStage0 {
         debug_assert!(FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES
             .windows(2)
             .all(|pair| pair[0] < pair[1]));
-        debug_assert!(
-            FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[0]
-                <= FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[1]
-        );
 
         Ok(Self {
             model,
