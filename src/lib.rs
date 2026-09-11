@@ -18,6 +18,7 @@ pub mod laser_calibration;
 pub mod preregistered;
 pub mod resonance;
 pub mod scirust_bridge;
+pub mod spectral_null;
 pub mod u2_decision;
 pub mod universality;
 pub mod universality_panel;
@@ -67,6 +68,7 @@ pub use scirust_bridge::{
     gaussian_white_noise, ornstein_uhlenbeck_path, spectral_signature, GaussianNoise,
     NoiseInputError, ScirustSpectralSignature,
 };
+pub use spectral_null::spectral_phase_null;
 pub use u2_decision::{classify_stage_u2, StageU2Decision, StageU2DecisionError};
 pub use universality::{
     multiscale_trace, test_fluctuation_universality, FluctuationSignature, MultiscaleTrace,
