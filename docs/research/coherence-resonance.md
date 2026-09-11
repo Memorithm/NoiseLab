@@ -6,6 +6,19 @@ Calibration experiment. No novelty claim.
 
 This experiment is a truth/control step in NoiseLab's progression from systems with established resonance behavior toward systems whose useful perturbation regimes are unknown.
 
+## Dependency provenance
+
+This calibration consumes SciRust from the exact immutable revision:
+
+```text
+repository = https://github.com/Memorithm/scirust.git
+revision   = f57d598bf03e5dfb16ec6423e4e43105a77540d3
+crate      = scirust-sim
+primitive  = SplitMix64
+```
+
+`Cargo.toml` pins that revision explicitly. The stochastic realizations therefore cannot silently change when SciRust `master` moves. Any future SciRust revision change is a protocol/dependency change that must be reviewed and requalified on a new NoiseLab head.
+
 ## Model
 
 Use the canonical excitable FitzHugh–Nagumo form
