@@ -12,6 +12,7 @@ pub mod calibration;
 pub mod evidence;
 pub mod fhn;
 pub mod langevin;
+pub mod preregistered;
 pub mod resonance;
 pub mod scirust_bridge;
 
@@ -33,6 +34,10 @@ pub use langevin::{
     calibrate_kramers_matching, coherent_switching_response, simulate_double_well,
     CoherentResponse, DoubleWellLangevin, KramersCalibration, LangevinError, LangevinRun,
     LangevinTrajectory, NoiseResponse,
+};
+pub use preregistered::{
+    BistableStage0V2, BISTABLE_STAGE0_V2_GRID_FACTORS, BISTABLE_STAGE0_V2_PROTOCOL_BLOB_SHA,
+    BISTABLE_STAGE0_V2_SEEDS,
 };
 pub use resonance::{
     detect_interior_response_peak, kramers_escape_rate,
