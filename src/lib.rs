@@ -7,6 +7,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod attention;
 pub mod calibration;
 pub mod evidence;
 pub mod fhn;
@@ -14,6 +15,10 @@ pub mod langevin;
 pub mod resonance;
 pub mod scirust_bridge;
 
+pub use attention::{
+    evaluate_flat_rope_gaussian_perturbation, flat_rope_control, AttentionExperimentError,
+    AttentionNoiseSite, AttentionPerturbationResponse, AttentionPerturbationSpec,
+};
 pub use calibration::{
     measure_steady_state_displacement_amplitude, sweep_linear_resonance, CalibrationError,
     DrivenLinearOscillator, LinearResonanceCalibration, ResponseMeasurement,
