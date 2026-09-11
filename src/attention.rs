@@ -60,7 +60,10 @@ impl Display for AttentionExperimentError {
                 formatter,
                 "attention noise standard deviation must be finite and non-negative, got {value}"
             ),
-            Self::Flat(error) => write!(formatter, "FLAT-ATTENTION oracle rejected experiment: {error}"),
+            Self::Flat(error) => write!(
+                formatter,
+                "FLAT-ATTENTION oracle rejected experiment: {error}"
+            ),
         }
     }
 }
@@ -129,7 +132,8 @@ pub fn evaluate_flat_rope_gaussian_perturbation(
         config,
         rotary,
     )?;
-    let (output_rms_delta, output_max_abs_delta) = delta_metrics(&control.output, &perturbed.output);
+    let (output_rms_delta, output_max_abs_delta) =
+        delta_metrics(&control.output, &perturbed.output);
     let (lse_rms_delta, lse_max_abs_delta) = delta_metrics(&control.lse, &perturbed.lse);
 
     Ok(AttentionPerturbationResponse {
