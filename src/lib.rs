@@ -12,6 +12,7 @@ pub mod calibration;
 pub mod evidence;
 pub mod fhn;
 pub mod fhn_stage0;
+pub mod information;
 pub mod langevin;
 pub mod laser_calibration;
 pub mod preregistered;
@@ -33,6 +34,10 @@ pub use fhn::{
     InterSpikeStats,
 };
 pub use fhn_stage0::{classify_fhn_stage0, FhnStage0Decision};
+pub use information::{
+    audit_noise_information, discrete_entropy_bits, histogram_mutual_information_bits,
+    InformationError, NoiseInformationAudit,
+};
 pub use langevin::{
     calibrate_kramers_matching, coherent_switching_response, simulate_double_well,
     CoherentResponse, DoubleWellLangevin, KramersCalibration, LangevinError, LangevinRun,
