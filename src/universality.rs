@@ -231,8 +231,8 @@ pub fn test_fluctuation_universality(
         .iter()
         .filter(|&&score| score >= convergence_score)
         .count();
-    let empirical_p_value = (at_least_as_extreme + 1) as f64
-        / (config.surrogate_repetitions + 1) as f64;
+    let empirical_p_value =
+        (at_least_as_extreme + 1) as f64 / (config.surrogate_repetitions + 1) as f64;
 
     let evidence = if convergence_score <= 0.0 {
         UniversalityEvidence::NoObservedConvergence
@@ -291,11 +291,7 @@ fn validate_series(series: &[f64], name: &'static str) -> Result<(), Universalit
     }
     for (index, &value) in series.iter().enumerate() {
         if !value.is_finite() {
-            return Err(UniversalityError::NonFinite {
-                name,
-                index,
-                value,
-            });
+            return Err(UniversalityError::NonFinite { name, index, value });
         }
     }
     Ok(())
@@ -459,8 +455,7 @@ fn sign_change_rate(series: &[f64], mean_value: f64) -> f64 {
 }
 
 fn signature_distance(a: FluctuationSignature, b: FluctuationSignature) -> f64 {
-    let log_variance_gap = ((a.variance + VARIANCE_FLOOR) / (b.variance + VARIANCE_FLOOR))
-        .ln();
+    let log_variance_gap = ((a.variance + VARIANCE_FLOOR) / (b.variance + VARIANCE_FLOOR)).ln();
     let autocorrelation_gap = a.lag1_autocorrelation - b.lag1_autocorrelation;
     let bounded_kurtosis_a = a.excess_kurtosis.atan() / FRAC_PI_2;
     let bounded_kurtosis_b = b.excess_kurtosis.atan() / FRAC_PI_2;
