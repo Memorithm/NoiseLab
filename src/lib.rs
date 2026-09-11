@@ -12,6 +12,7 @@ pub mod calibration;
 pub mod evidence;
 pub mod fhn;
 pub mod langevin;
+pub mod laser_calibration;
 pub mod preregistered;
 pub mod resonance;
 pub mod scirust_bridge;
@@ -34,6 +35,10 @@ pub use langevin::{
     calibrate_kramers_matching, coherent_switching_response, simulate_double_well,
     CoherentResponse, DoubleWellLangevin, KramersCalibration, LangevinError, LangevinRun,
     LangevinTrajectory, NoiseResponse,
+};
+pub use laser_calibration::{
+    calibrate_laser_relaxation, LaserCalibrationError, LaserRelaxationCalibration,
+    LaserRingMeasurement,
 };
 pub use preregistered::{
     BistableStage0V2, BISTABLE_STAGE0_V2_GRID_FACTORS, BISTABLE_STAGE0_V2_PROTOCOL_BLOB_SHA,
