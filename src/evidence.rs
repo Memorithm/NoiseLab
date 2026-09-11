@@ -38,6 +38,11 @@ pub enum EvidenceError {
     InvalidUncertaintyWeight,
     /// A response contains a non-finite coordinate or statistic.
     NonFiniteResponse { index: usize },
+    /// A response reports a negative sample standard deviation.
+    NegativeSampleStddev { index: usize },
+    /// Sweep coordinates must be strictly increasing so boundary/interior
+    /// semantics cannot depend on caller ordering or duplicate coordinates.
+    NonIncreasingCoordinate { index: usize },
     /// A response was produced without any replicate.
     ZeroReplicates { index: usize },
 }
@@ -53,6 +58,18 @@ impl Display for EvidenceError {
             }
             Self::NonFiniteResponse { index } => {
                 write!(formatter, "response {index} contains a non-finite value")
+            }
+            Self::NegativeSampleStddev { index } => {
+                write!(
+                    formatter,
+                    "response {index} has a negative sample standard deviation"
+                )
+            }
+            Self::NonIncreasingCoordinate { index } => {
+                write!(
+                    formatter,
+                    "response {index} does not strictly increase the sweep coordinate"
+                )
             }
             Self::ZeroReplicates { index } => {
                 write!(formatter, "response {index} has zero replicates")
@@ -70,6 +87,11 @@ impl Error for EvidenceError {}
 /// interior mean is retained only when
 ///
 /// `mean_peak - w*SE_peak > max(mean_left + w*SE_left, mean_right + w*SE_right)`.
+///
+/// Sweep coordinates must be finite and strictly increasing, and sample
+/// standard deviations must be finite and non-negative. These checks make the
+/// boundary/interior interpretation and uncertainty penalty independent of
+/// malformed caller ordering or invalid dispersion statistics.
 ///
 /// This is intentionally described as an uncertainty-penalized heuristic, not
 /// a formal confidence interval or a proof of a resonance mechanism. It is
@@ -93,6 +115,12 @@ pub fn detect_edge_separated_peak(
             || !response.sample_stddev.is_finite()
         {
             return Err(EvidenceError::NonFiniteResponse { index });
+        }
+        if response.sample_stddev < 0.0 {
+            return Err(EvidenceError::NegativeSampleStddev { index });
+        }
+        if index > 0 && response.noise_intensity <= responses[index - 1].noise_intensity {
+            return Err(EvidenceError::NonIncreasingCoordinate { index });
         }
         if response.replicates == 0 {
             return Err(EvidenceError::ZeroReplicates { index });
@@ -200,6 +228,39 @@ mod tests {
                 1.0,
             ),
             Err(EvidenceError::ZeroReplicates { index: 1 })
+        );
+        assert_eq!(
+            detect_edge_separated_peak(
+                &[
+                    response(0.1, 0.1, 0.0, 1),
+                    response(0.2, 0.2, -0.1, 4),
+                    response(0.3, 0.1, 0.0, 1),
+                ],
+                1.0,
+            ),
+            Err(EvidenceError::NegativeSampleStddev { index: 1 })
+        );
+        assert_eq!(
+            detect_edge_separated_peak(
+                &[
+                    response(0.1, 0.1, 0.0, 1),
+                    response(0.1, 0.2, 0.0, 1),
+                    response(0.3, 0.1, 0.0, 1),
+                ],
+                1.0,
+            ),
+            Err(EvidenceError::NonIncreasingCoordinate { index: 1 })
+        );
+        assert_eq!(
+            detect_edge_separated_peak(
+                &[
+                    response(0.1, 0.1, 0.0, 1),
+                    response(0.3, 0.2, 0.0, 1),
+                    response(0.2, 0.1, 0.0, 1),
+                ],
+                1.0,
+            ),
+            Err(EvidenceError::NonIncreasingCoordinate { index: 2 })
         );
     }
 }
