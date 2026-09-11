@@ -91,20 +91,29 @@ mod tests {
     fn revision_drift_fails_closed() {
         let mut readiness = U2Readiness::preregistered();
         readiness.scirust_revision = "deadbeef";
-        assert_eq!(readiness.validate(), Err(U2ReadinessError::WrongScirustRevision));
+        assert_eq!(
+            readiness.validate(),
+            Err(U2ReadinessError::WrongScirustRevision)
+        );
     }
 
     #[test]
     fn missing_qualification_fails_closed() {
         let mut readiness = U2Readiness::preregistered();
         readiness.spectral_null_qualified = false;
-        assert_eq!(readiness.validate(), Err(U2ReadinessError::SpectralNullNotQualified));
+        assert_eq!(
+            readiness.validate(),
+            Err(U2ReadinessError::SpectralNullNotQualified)
+        );
     }
 
     #[test]
     fn underpowered_null_family_fails_closed() {
         let mut readiness = U2Readiness::preregistered();
         readiness.surrogates_per_null = U2_MIN_SURROGATES_PER_NULL - 1;
-        assert_eq!(readiness.validate(), Err(U2ReadinessError::TooFewSurrogates));
+        assert_eq!(
+            readiness.validate(),
+            Err(U2ReadinessError::TooFewSurrogates)
+        );
     }
 }
