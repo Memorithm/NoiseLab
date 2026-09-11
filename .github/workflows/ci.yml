@@ -22,16 +22,6 @@ jobs:
       - name: Check
         run: cargo check --all-targets
       - name: Clippy
-        shell: bash
-        run: |
-          set -o pipefail
-          cargo clippy --all-targets -- -D warnings 2>&1 | tee clippy.log
-      - name: Upload Clippy diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: clippy-diagnostics
-          path: clippy.log
-          if-no-files-found: error
+        run: cargo clippy --all-targets -- -D warnings
       - name: Test
         run: cargo test
