@@ -54,8 +54,7 @@ pub fn classify_fhn_stage0(calibration: &CoherenceCalibration) -> FhnStage0Decis
     let conservative_left = responses[0].mean_cv
         - FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * standard_error(&responses[0]);
     let conservative_right = responses[responses.len() - 1].mean_cv
-        - FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT
-            * standard_error(&responses[responses.len() - 1]);
+        - FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * standard_error(&responses[responses.len() - 1]);
     let conservative_edge = conservative_left.min(conservative_right);
     let conservative_separation = conservative_edge - conservative_minimum;
     let strict_local_minimum = minimum_response.mean_cv < responses[minimum_index - 1].mean_cv
@@ -150,8 +149,8 @@ mod tests {
                 .find(|response| response.noise_amplitude == noise_amplitude)
                 .unwrap();
             let standard_error = standard_error(selected);
-            let conservative_minimum = selected.mean_cv
-                + FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * standard_error;
+            let conservative_minimum =
+                selected.mean_cv + FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * standard_error;
             let conservative_edge = (responses[0].mean_cv
                 - FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * standard_error(&responses[0]))
             .min(
