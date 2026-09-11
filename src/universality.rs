@@ -208,7 +208,7 @@ pub fn test_fluctuation_universality(
     let trace_a = multiscale_trace_standardized(&standardized_a, &config.scales)?;
     let trace_b = multiscale_trace_standardized(&standardized_b, &config.scales)?;
     let scale_distances = trace_distances(&trace_a, &trace_b);
-    let convergence_score = convergence_score(&scale_distances);
+    let observed_convergence_score = convergence_score(&scale_distances);
 
     let mut rng = SplitMix64::new(config.seed);
     let mut surrogate_scores = Vec::with_capacity(config.surrogate_repetitions);
@@ -229,12 +229,12 @@ pub fn test_fluctuation_universality(
     let surrogate_stddev_convergence = sample_stddev(&surrogate_scores);
     let at_least_as_extreme = surrogate_scores
         .iter()
-        .filter(|&&score| score >= convergence_score)
+        .filter(|&&score| score >= observed_convergence_score)
         .count();
     let empirical_p_value =
         (at_least_as_extreme + 1) as f64 / (config.surrogate_repetitions + 1) as f64;
 
-    let evidence = if convergence_score <= 0.0 {
+    let evidence = if observed_convergence_score <= 0.0 {
         UniversalityEvidence::NoObservedConvergence
     } else if empirical_p_value <= config.alpha {
         UniversalityEvidence::SurrogateSeparatedCandidate
@@ -249,7 +249,7 @@ pub fn test_fluctuation_universality(
         trace_a,
         trace_b,
         scale_distances,
-        convergence_score,
+        convergence_score: observed_convergence_score,
         surrogate_mean_convergence,
         surrogate_stddev_convergence,
         empirical_p_value,
