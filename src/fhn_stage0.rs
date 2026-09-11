@@ -46,7 +46,8 @@ pub fn classify_fhn_stage0(calibration: &CoherenceCalibration) -> FhnStage0Decis
         return FhnStage0Decision::NoInteriorMinimum;
     };
     if !minimum.noise_amplitude.is_finite()
-        || !FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES[1..FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES.len() - 1]
+        || !FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES
+            [1..FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES.len() - 1]
             .contains(&minimum.noise_amplitude)
     {
         return FhnStage0Decision::ProtocolMismatch;
