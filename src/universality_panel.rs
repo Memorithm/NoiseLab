@@ -7,10 +7,10 @@
 //! additional room to converge.
 
 use crate::{
-    gaussian_white_noise, ornstein_uhlenbeck_path, simulate_double_well, DoubleWellLangevin,
-    GaussianNoise, LangevinError, LangevinRun, NoiseInputError, UniversalityError,
-    UniversalityEvidence, UniversalityTestConfig, UniversalityTestResult,
-    test_fluctuation_universality,
+    gaussian_white_noise, ornstein_uhlenbeck_path, simulate_double_well,
+    test_fluctuation_universality, DoubleWellLangevin, GaussianNoise, LangevinError,
+    LangevinRun, NoiseInputError, UniversalityError, UniversalityEvidence,
+    UniversalityTestConfig, UniversalityTestResult,
 };
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -216,7 +216,7 @@ pub fn run_stage_u1_panel(
             StageU1Source::GaussianWhiteA,
             StageU1Source::GaussianWhiteB,
             StageU1PairPurpose::WithinIidControl,
-            gaussian_a,
+            gaussian_a.clone(),
             gaussian_b,
         ),
         (
@@ -230,7 +230,7 @@ pub fn run_stage_u1_panel(
             StageU1Source::GaussianWhiteA,
             StageU1Source::OrnsteinUhlenbeckSlow,
             StageU1PairPurpose::DistinctTemporalControl,
-            retain_tail(&gaussian_a, config.samples),
+            gaussian_a,
             ou_slow.clone(),
         ),
         (
