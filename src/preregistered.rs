@@ -3,6 +3,7 @@
 //! These helpers encode preregistered inputs and preflight checks. They do not
 //! execute scientific sweeps and do not promote any empirical result.
 
+use crate::fhn::{FhnError, FhnRun, FitzHughNagumo};
 use crate::langevin::{DoubleWellLangevin, LangevinError, LangevinRun};
 use crate::resonance::matched_kramers_noise_intensity;
 
@@ -19,6 +20,28 @@ pub const BISTABLE_STAGE0_V2_GRID_FACTORS: [f64; 7] = [0.25, 0.40, 0.63, 1.00, 1
 
 /// Frozen forcing frequency of the separately preregistered falsification regime.
 pub const BISTABLE_STAGE0_V2_FALSIFICATION_FREQUENCY_HZ: f64 = 0.20;
+
+/// Git blob SHA of `docs/research/coherence-resonance.md` at protocol freeze.
+pub const FHN_COHERENCE_STAGE0_PROTOCOL_BLOB_SHA: &str = "dafd7b7b4cf9764a96c1cdcc0c2fbd458a462445";
+
+/// Paired deterministic seeds frozen by the FHN coherence calibration protocol.
+pub const FHN_COHERENCE_STAGE0_SEEDS: [u64; 8] = [11, 23, 37, 41, 53, 67, 79, 97];
+
+/// Frozen non-adaptive FHN noise-amplitude scan.
+pub const FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES: [f64; 8] =
+    [0.02, 0.03, 0.05, 0.075, 0.10, 0.20, 0.40, 0.70];
+
+/// Frozen uncertainty multiplier used by the calibration decision heuristic.
+pub const FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT: f64 = 2.0;
+
+/// Broad preregistered acceptance interval for the sampled calibration coordinate.
+pub const FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL: [f64; 2] = [0.03, 0.20];
+
+const _: () = {
+    assert!(
+        FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[0] <= FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[1]
+    );
+};
 
 /// Fully materialized Stage 0 v2 primary-regime inputs.
 #[derive(Debug, Clone, PartialEq)]
@@ -93,6 +116,38 @@ impl BistableStage0V2 {
     }
 }
 
+/// Outcome-blind executable form of the frozen FHN coherence calibration.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FhnCoherenceStage0 {
+    pub model: FitzHughNagumo,
+    pub run: FhnRun,
+    pub noise_amplitudes: [f64; 8],
+    pub seeds: [u64; 8],
+    pub uncertainty_weight: f64,
+    pub acceptance_interval: [f64; 2],
+}
+
+impl FhnCoherenceStage0 {
+    /// Materialize the preregistered calibration inputs without running a sweep.
+    pub fn materialize() -> Result<Self, FhnError> {
+        let model = FitzHughNagumo::new(0.01, 1.05)?;
+        let run = FhnRun::new(0.001, 80_000, 10_000, 0.0, 5)?;
+
+        debug_assert!(FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES
+            .windows(2)
+            .all(|pair| pair[0] < pair[1]));
+
+        Ok(Self {
+            model,
+            run,
+            noise_amplitudes: FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES,
+            seeds: FHN_COHERENCE_STAGE0_SEEDS,
+            uncertainty_weight: FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT,
+            acceptance_interval: FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,5 +185,33 @@ mod tests {
     fn stage0_v2_falsification_regime_fails_closed_without_kramers_match() {
         let control = BistableStage0V2::falsification_kramers_control().unwrap();
         assert_eq!(control, None);
+    }
+
+    #[test]
+    fn fhn_stage0_materialization_matches_frozen_protocol() {
+        let protocol = FhnCoherenceStage0::materialize().unwrap();
+        assert_eq!(protocol.model, FitzHughNagumo::new(0.01, 1.05).unwrap());
+        assert_eq!(
+            protocol.run,
+            FhnRun::new(0.001, 80_000, 10_000, 0.0, 5).unwrap()
+        );
+        assert_eq!(
+            protocol.noise_amplitudes,
+            FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES
+        );
+        assert_eq!(protocol.seeds, FHN_COHERENCE_STAGE0_SEEDS);
+        assert_eq!(protocol.uncertainty_weight, 2.0);
+        assert_eq!(protocol.acceptance_interval, [0.03, 0.20]);
+    }
+
+    #[test]
+    fn fhn_stage0_scan_is_strictly_increasing_and_acceptance_is_interior() {
+        let protocol = FhnCoherenceStage0::materialize().unwrap();
+        assert!(protocol
+            .noise_amplitudes
+            .windows(2)
+            .all(|pair| pair[0].is_finite() && pair[0] >= 0.0 && pair[0] < pair[1]));
+        assert!(protocol.acceptance_interval[0] > protocol.noise_amplitudes[0]);
+        assert!(protocol.acceptance_interval[1] < *protocol.noise_amplitudes.last().unwrap());
     }
 }
