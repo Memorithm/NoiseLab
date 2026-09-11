@@ -17,6 +17,9 @@ pub const BISTABLE_STAGE0_V2_SEEDS: [u64; 16] = [
 /// Frozen multiplicative grid around the independent Kramers control.
 pub const BISTABLE_STAGE0_V2_GRID_FACTORS: [f64; 7] = [0.25, 0.40, 0.63, 1.00, 1.58, 2.50, 4.00];
 
+/// Frozen forcing frequency of the separately preregistered falsification regime.
+pub const BISTABLE_STAGE0_V2_FALSIFICATION_FREQUENCY_HZ: f64 = 0.20;
+
 /// Fully materialized Stage 0 v2 primary-regime inputs.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BistableStage0V2 {
@@ -66,6 +69,28 @@ impl BistableStage0V2 {
             positive_noise_grid,
         })
     }
+
+    /// Recompute the analytic Kramers control for the frozen falsification frequency.
+    ///
+    /// This is deliberately a preflight-only calculation. `None` means that the
+    /// half-period matching equation has no positive finite solution under the
+    /// model's weak-noise prefactor, so a grid derived from such a control must
+    /// not be fabricated or executed.
+    pub fn falsification_kramers_control() -> Result<Option<f64>, LangevinError> {
+        let model = DoubleWellLangevin::new(
+            1.2,
+            1.0,
+            0.15,
+            BISTABLE_STAGE0_V2_FALSIFICATION_FREQUENCY_HZ,
+            0.0,
+        )?;
+        matched_kramers_noise_intensity(
+            model.barrier_height(),
+            model.kramers_prefactor_rate(),
+            model.forcing_frequency_hz,
+        )
+        .map_err(LangevinError::Resonance)
+    }
 }
 
 #[cfg(test)]
@@ -99,5 +124,11 @@ mod tests {
         {
             assert!((*actual - factor * expected).abs() < 1e-12);
         }
+    }
+
+    #[test]
+    fn stage0_v2_falsification_regime_fails_closed_without_kramers_match() {
+        let control = BistableStage0V2::falsification_kramers_control().unwrap();
+        assert_eq!(control, None);
     }
 }
