@@ -18,6 +18,7 @@ pub mod laser_calibration;
 pub mod preregistered;
 pub mod resonance;
 pub mod scirust_bridge;
+pub mod universality;
 
 pub use attention::{
     evaluate_flat_rope_gaussian_perturbation, flat_rope_control, AttentionExperimentError,
@@ -63,4 +64,9 @@ pub use resonance::{
 pub use scirust_bridge::{
     gaussian_white_noise, ornstein_uhlenbeck_path, spectral_signature, GaussianNoise,
     NoiseInputError, ScirustSpectralSignature,
+};
+pub use universality::{
+    multiscale_trace, test_fluctuation_universality, FluctuationSignature, MultiscaleTrace,
+    ScaleDistance, UniversalityError, UniversalityEvidence, UniversalityTestConfig,
+    UniversalityTestResult,
 };
