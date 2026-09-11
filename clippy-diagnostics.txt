@@ -1,0 +1,149 @@
+[1m[92m    Updating[0m git repository `https://github.com/Memorithm/FLAT-ATTENTION.git`
+[1m[92m    Updating[0m git repository `https://github.com/Memorithm/scirust.git`
+[1m[92m    Updating[0m crates.io index
+[1m[92m     Locking[0m 74 packages to latest compatible versions
+[1m[92m      Adding[0m ordered-float v5.4.0 [1m[33m(available: v5.5.0)[0m
+[1m[92m Downloading[0m crates ...
+[1m[92m  Downloaded[0m crossbeam-deque v0.8.8
+[1m[92m  Downloaded[0m autocfg v1.5.1
+[1m[92m  Downloaded[0m cfg-if v1.0.4
+[1m[92m  Downloaded[0m approx v0.5.1
+[1m[92m  Downloaded[0m crossbeam-epoch v0.9.21
+[1m[92m  Downloaded[0m bytemuck v1.25.2
+[1m[92m  Downloaded[0m once_cell v1.21.4
+[1m[92m  Downloaded[0m serde v1.0.229
+[1m[92m  Downloaded[0m zmij v1.0.23
+[1m[92m  Downloaded[0m rand_distr v0.4.3
+[1m[92m  Downloaded[0m serde_derive v1.0.229
+[1m[92m  Downloaded[0m zerocopy v0.8.57
+[1m[92m  Downloaded[0m num-traits v0.2.19
+[1m[92m  Downloaded[0m rayon-core v1.13.0
+[1m[92m  Downloaded[0m getrandom v0.2.17
+[1m[92m  Downloaded[0m rand_core v0.6.4
+[1m[92m  Downloaded[0m thiserror-impl v2.0.20
+[1m[92m  Downloaded[0m crossbeam-utils v0.8.23
+[1m[92m  Downloaded[0m tracing-attributes v0.1.31
+[1m[92m  Downloaded[0m itoa v1.0.18
+[1m[92m  Downloaded[0m libm v0.2.16
+[1m[92m  Downloaded[0m proc-macro2 v1.0.107
+[1m[92m  Downloaded[0m rawpointer v0.2.1
+[1m[92m  Downloaded[0m thiserror v2.0.20
+[1m[92m  Downloaded[0m nalgebra-macros v0.2.2
+[1m[92m  Downloaded[0m num-complex v0.4.6
+[1m[92m  Downloaded[0m num-integer v0.1.47
+[1m[92m  Downloaded[0m pin-project-lite v0.2.17
+[1m[92m  Downloaded[0m ppv-lite86 v0.2.21
+[1m[92m  Downloaded[0m quote v1.0.47
+[1m[92m  Downloaded[0m rand_chacha v0.3.1
+[1m[92m  Downloaded[0m num-rational v0.4.2
+[1m[92m  Downloaded[0m ordered-float v5.4.0
+[1m[92m  Downloaded[0m paste v1.0.15
+[1m[92m  Downloaded[0m unicode-ident v1.0.24
+[1m[92m  Downloaded[0m either v1.18.0
+[1m[92m  Downloaded[0m matrixmultiply v0.3.11
+[1m[92m  Downloaded[0m serde_core v1.0.229
+[1m[92m  Downloaded[0m tracing-core v0.1.36
+[1m[92m  Downloaded[0m half v2.7.1
+[1m[92m  Downloaded[0m safe_arch v0.7.4
+[1m[92m  Downloaded[0m simba v0.9.1
+[1m[92m  Downloaded[0m wide v0.7.33
+[1m[92m  Downloaded[0m zerocopy-derive v0.8.57
+[1m[92m  Downloaded[0m memchr v2.8.3
+[1m[92m  Downloaded[0m rand v0.8.8
+[1m[92m  Downloaded[0m typenum v1.20.1
+[1m[92m  Downloaded[0m num-bigint v0.4.8
+[1m[92m  Downloaded[0m serde_json v1.0.151
+[1m[92m  Downloaded[0m syn v3.0.5
+[1m[92m  Downloaded[0m rayon v1.12.0
+[1m[92m  Downloaded[0m syn v2.0.119
+[1m[92m  Downloaded[0m ndarray v0.16.1
+[1m[92m  Downloaded[0m nalgebra v0.33.3
+[1m[92m  Downloaded[0m tracing v0.1.44
+[1m[92m  Downloaded[0m libc v0.2.189
+[1m[92m   Compiling[0m proc-macro2 v1.0.107
+[1m[92m   Compiling[0m unicode-ident v1.0.24
+[1m[92m   Compiling[0m quote v1.0.47
+[1m[92m   Compiling[0m autocfg v1.5.1
+[1m[92m   Compiling[0m libm v0.2.16
+[1m[92m   Compiling[0m num-traits v0.2.19
+[1m[92m   Compiling[0m serde_core v1.0.229
+[1m[92m   Compiling[0m libc v0.2.189
+[1m[92m   Compiling[0m serde v1.0.229
+[1m[92m   Compiling[0m zerocopy v0.8.57
+[1m[92m   Compiling[0m matrixmultiply v0.3.11
+[1m[92m   Compiling[0m syn v2.0.119
+[1m[92m   Compiling[0m syn v3.0.5
+[1m[92m    Checking[0m num-integer v0.1.47
+[1m[92m   Compiling[0m crossbeam-utils v0.8.23
+[1m[92m    Checking[0m cfg-if v1.0.4
+[1m[92m    Checking[0m num-complex v0.4.6
+[1m[92m   Compiling[0m crossbeam-epoch v0.9.21
+[1m[92m    Checking[0m rawpointer v0.2.1
+[1m[92m    Checking[0m getrandom v0.2.17
+[1m[92m   Compiling[0m paste v1.0.15
+[1m[92m   Compiling[0m zmij v1.0.23
+[1m[92m   Compiling[0m crossbeam-deque v0.8.8
+[1m[92m    Checking[0m bytemuck v1.25.2
+[1m[92m    Checking[0m rand_core v0.6.4
+[1m[92m    Checking[0m safe_arch v0.7.4
+[1m[92m   Compiling[0m serde_json v1.0.151
+[1m[92m   Compiling[0m thiserror v2.0.20
+[1m[92m   Compiling[0m rayon-core v1.13.0
+[1m[92m    Checking[0m wide v0.7.33
+[1m[92m   Compiling[0m serde_derive v1.0.229
+[1m[92m   Compiling[0m thiserror-impl v2.0.20
+[1m[92m    Checking[0m num-bigint v0.4.8
+[1m[92m    Checking[0m approx v0.5.1
+[1m[92m    Checking[0m itoa v1.0.18
+[1m[92m    Checking[0m memchr v2.8.3
+[1m[92m    Checking[0m once_cell v1.21.4
+[1m[92m    Checking[0m tracing-core v0.1.36
+[1m[92m   Compiling[0m zerocopy-derive v0.8.57
+[1m[92m   Compiling[0m nalgebra-macros v0.2.2
+[1m[92m   Compiling[0m tracing-attributes v0.1.31
+[1m[92m    Checking[0m num-rational v0.4.2
+[1m[92m    Checking[0m simba v0.9.1
+[1m[92m    Checking[0m ndarray v0.16.1
+[1m[92m    Checking[0m scirust-special v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m either v1.18.0
+[1m[92m    Checking[0m scirust-autodiff v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m pin-project-lite v0.2.17
+[1m[92m    Checking[0m typenum v1.20.1
+[1m[92m    Checking[0m tracing v0.1.44
+[1m[92m    Checking[0m rayon v1.12.0
+[1m[92m    Checking[0m scirust-symbolic v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m   Compiling[0m scirust-macros v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m scirust-simd v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m nalgebra v0.33.3
+[1m[92m    Checking[0m scirust-solvers v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m scirust-stats v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m ppv-lite86 v0.2.21
+[1m[92m    Checking[0m half v2.7.1
+[1m[92m    Checking[0m scirust-bench-schema v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m rand_chacha v0.3.1
+[1m[92m    Checking[0m scirust-estimation v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m rand v0.8.8
+[1m[92m    Checking[0m ordered-float v5.4.0
+[1m[92m    Checking[0m scirust-adaptive-control v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m scirust-sim v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m rand_distr v0.4.3
+[1m[92m    Checking[0m flat-attention v0.1.0 (https://github.com/Memorithm/FLAT-ATTENTION.git?rev=4529a2079434965e13e90ddd2e98ecc88ee0cb3a#4529a207)
+[1m[92m    Checking[0m scirust-core v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m scirust-signal v0.1.0 (https://github.com/Memorithm/scirust.git?rev=f57d598bf03e5dfb16ec6423e4e43105a77540d3#f57d598b)
+[1m[92m    Checking[0m noiselab v0.1.0 (/home/runner/work/NoiseLab/NoiseLab)
+[1m[91merror[0m[1m: this assertion has a constant value[0m
+   [1m[94m--> [0msrc/preregistered.rs:133:9
+    [1m[94m|[0m
+[1m[94m133[0m [1m[94m|[0m [1m[91m/[0m         debug_assert!(
+[1m[94m134[0m [1m[94m|[0m [1m[91m|[0m             FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[0]
+[1m[94m135[0m [1m[94m|[0m [1m[91m|[0m                 <= FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[1]
+[1m[94m136[0m [1m[94m|[0m [1m[91m|[0m         );
+    [1m[94m|[0m [1m[91m|_________^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: consider moving this into a const block: `const { assert!(..) }`
+    [1m[94m= [0m[1mhelp[0m: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#assertions_on_constants
+    [1m[94m= [0m[1mnote[0m: `-D clippy::assertions-on-constants` implied by `-D warnings`
+    [1m[94m= [0m[1mhelp[0m: to override `-D warnings` add `#[allow(clippy::assertions_on_constants)]`
+
+[1m[91merror[0m: could not compile `noiselab` (lib) due to 1 previous error
+CLIPPY_STATUS=101
