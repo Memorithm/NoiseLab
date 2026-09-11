@@ -7,8 +7,7 @@ use crate::langevin::{DoubleWellLangevin, LangevinError, LangevinRun};
 use crate::resonance::matched_kramers_noise_intensity;
 
 /// Git blob SHA of `docs/research/bistable-kramers-stage0-v2.md` at protocol freeze.
-pub const BISTABLE_STAGE0_V2_PROTOCOL_BLOB_SHA: &str =
-    "54cb4bfb9880e33117df3383864cb03e7bc706e2";
+pub const BISTABLE_STAGE0_V2_PROTOCOL_BLOB_SHA: &str = "54cb4bfb9880e33117df3383864cb03e7bc706e2";
 
 /// Paired seeds frozen by the Stage 0 v2 preregistration.
 pub const BISTABLE_STAGE0_V2_SEEDS: [u64; 16] = [
@@ -16,8 +15,7 @@ pub const BISTABLE_STAGE0_V2_SEEDS: [u64; 16] = [
 ];
 
 /// Frozen multiplicative grid around the independent Kramers control.
-pub const BISTABLE_STAGE0_V2_GRID_FACTORS: [f64; 7] =
-    [0.25, 0.40, 0.63, 1.00, 1.58, 2.50, 4.00];
+pub const BISTABLE_STAGE0_V2_GRID_FACTORS: [f64; 7] = [0.25, 0.40, 0.63, 1.00, 1.58, 2.50, 4.00];
 
 /// Fully materialized Stage 0 v2 primary-regime inputs.
 #[derive(Debug, Clone, PartialEq)]
@@ -53,10 +51,12 @@ impl BistableStage0V2 {
             model.forcing_frequency_hz,
         )
         .map_err(LangevinError::Resonance)?
-        .ok_or(LangevinError::NonPositive("Kramers matched noise intensity"))?;
+        .ok_or(LangevinError::NonPositive(
+            "Kramers matched noise intensity",
+        ))?;
 
-        let positive_noise_grid = BISTABLE_STAGE0_V2_GRID_FACTORS
-            .map(|factor| factor * predicted_noise_intensity);
+        let positive_noise_grid =
+            BISTABLE_STAGE0_V2_GRID_FACTORS.map(|factor| factor * predicted_noise_intensity);
 
         Ok(Self {
             model,
