@@ -8,9 +8,9 @@
 
 use crate::{
     gaussian_white_noise, ornstein_uhlenbeck_path, simulate_double_well,
-    test_fluctuation_universality, DoubleWellLangevin, GaussianNoise, LangevinError,
-    LangevinRun, NoiseInputError, UniversalityError, UniversalityEvidence,
-    UniversalityTestConfig, UniversalityTestResult,
+    test_fluctuation_universality, DoubleWellLangevin, GaussianNoise, LangevinError, LangevinRun,
+    NoiseInputError, UniversalityError, UniversalityEvidence, UniversalityTestConfig,
+    UniversalityTestResult,
 };
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -92,7 +92,9 @@ pub struct StageU1PanelResult {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum StageU1Error {
-    InvalidSampleCount { samples: usize },
+    InvalidSampleCount {
+        samples: usize,
+    },
     BurnInTooLarge {
         burn_in_samples: usize,
         retained_samples: usize,
@@ -152,9 +154,7 @@ impl From<UniversalityError> for StageU1Error {
 /// and one unforced bistable Langevin trajectory. Every pair is analyzed with
 /// the same scale grid and surrogate count; only the surrogate RNG seed is
 /// deterministically decorrelated per pair.
-pub fn run_stage_u1_panel(
-    config: &StageU1PanelConfig,
-) -> Result<StageU1PanelResult, StageU1Error> {
+pub fn run_stage_u1_panel(config: &StageU1PanelConfig) -> Result<StageU1PanelResult, StageU1Error> {
     validate_panel_config(config)?;
     let total = config
         .samples
