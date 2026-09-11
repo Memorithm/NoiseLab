@@ -1,6 +1,6 @@
 # Fluctuation universality — Stage U2 preregistration
 
-Status: **preregistered; SciRust spectral-surrogate dependency pinned; do not execute until NoiseLab consumption code is qualified against the pinned revision**.
+Status: **preregistered; SciRust spectral-surrogate dependency pinned; NoiseLab consumption qualified against the pinned revision; outcome-blind readiness gate merged; U2 not executed by this update**.
 
 This document freezes the Stage U2 cross-mechanism protocol before any U2 outcomes are inspected. It extends the already-recorded negative/diagnostic U1 work. It does not revise U0/U1 results and does not assert universality.
 
@@ -61,7 +61,7 @@ Use the reusable SciRust spectral-surrogate primitive only from the immutable re
 - preserve real-valued reconstruction;
 - reject non-finite or otherwise unsupported input rather than silently modifying it.
 
-The preregistration-time candidate PR #1421 is no longer a permitted dependency reference. The qualified dependency is now pinned in `docs/research/dependencies/scirust-spectral-surrogate-u2.md` to SciRust `master` commit `0e2eaccac631b689f97c242c47bad11d433847d9`, which contains `scirust-signal/src/surrogate.rs` after PR #1422 merged. Stage U2 still must not execute until NoiseLab consumption code is explicitly qualified against that exact revision. If the dependency revision changes, a new explicit pin and requalification are required before execution.
+The preregistration-time candidate PR #1421 is no longer a permitted dependency reference. The qualified dependency is pinned in `docs/research/dependencies/scirust-spectral-surrogate-u2.md` to SciRust `master` commit `0e2eaccac631b689f97c242c47bad11d433847d9`, which contains `scirust-signal/src/surrogate.rs` after PR #1422 merged. NoiseLab PR #26 qualified the local spectral-null adapter against that exact revision, and PR #27 added the outcome-blind `U2Readiness` gate that fixes the revision, four source families, six unordered pairs, and at least 199 surrogates per null family before execution. If the dependency revision changes, a new explicit pin and requalification are required before execution. Neither adapter qualification nor readiness validation is U2 outcome evidence.
 
 The phase-randomized null tests whether an apparent U2 signal exceeds what can be explained by the observed power spectrum/second-order Fourier structure. It does not preserve all nonlinear temporal structure.
 
@@ -113,6 +113,7 @@ No failed pair may be removed from the reported U2 matrix.
 - Keep raw series, derived descriptors, surrogate seeds, source revisions and SciRust dependency revision addressable in the result artifact.
 - Treat SciRust as the provider of the generic spectral-surrogate primitive; do not duplicate FFT/RNG logic in NoiseLab.
 - If the SciRust primitive changes after the pinned revision, requalification is required and the exact consumed revision must remain recorded.
+- Any U2 executor must call the outcome-blind readiness gate before generating the first U2 pair result; this documentation update itself does not execute U2.
 
 ## Stop condition
 
