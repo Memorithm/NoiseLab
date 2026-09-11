@@ -132,8 +132,10 @@ impl FhnCoherenceStage0 {
         debug_assert!(FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES
             .windows(2)
             .all(|pair| pair[0] < pair[1]));
-        debug_assert!(FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[0]
-            <= FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[1]);
+        debug_assert!(
+            FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[0]
+                <= FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL[1]
+        );
 
         Ok(Self {
             model,
@@ -188,9 +190,18 @@ mod tests {
     #[test]
     fn fhn_stage0_materialization_matches_frozen_protocol() {
         let protocol = FhnCoherenceStage0::materialize().unwrap();
-        assert_eq!(protocol.model, FitzHughNagumo::new(0.01, 1.05).unwrap());
-        assert_eq!(protocol.run, FhnRun::new(0.001, 80_000, 10_000, 0.0, 5).unwrap());
-        assert_eq!(protocol.noise_amplitudes, FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES);
+        assert_eq!(
+            protocol.model,
+            FitzHughNagumo::new(0.01, 1.05).unwrap()
+        );
+        assert_eq!(
+            protocol.run,
+            FhnRun::new(0.001, 80_000, 10_000, 0.0, 5).unwrap()
+        );
+        assert_eq!(
+            protocol.noise_amplitudes,
+            FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES
+        );
         assert_eq!(protocol.seeds, FHN_COHERENCE_STAGE0_SEEDS);
         assert_eq!(protocol.uncertainty_weight, 2.0);
         assert_eq!(protocol.acceptance_interval, [0.03, 0.20]);
@@ -204,7 +215,8 @@ mod tests {
             .windows(2)
             .all(|pair| pair[0].is_finite() && pair[0] >= 0.0 && pair[0] < pair[1]));
         assert!(protocol.acceptance_interval[0] > protocol.noise_amplitudes[0]);
-        assert!(protocol.acceptance_interval[1]
-            < *protocol.noise_amplitudes.last().unwrap());
+        assert!(
+            protocol.acceptance_interval[1] < *protocol.noise_amplitudes.last().unwrap()
+        );
     }
 }
