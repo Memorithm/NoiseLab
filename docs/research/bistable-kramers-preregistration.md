@@ -1,6 +1,8 @@
 # Bistable Langevin / Kramers calibration preregistration
 
-Status: Stage 0 preregistration only. This document fixes the non-final protocol before implementation or inspection of experimental outcomes.
+Status: INVALIDATED before execution. Do not use this document to run or interpret a calibration sweep. The Stage 0 text below used the convention `U(x) = a x^4 / 4 - b x^2 / 2`, while the already-existing executable `DoubleWellLangevin` implementation uses `U(x) = b x^4 / 4 - a x^2 / 2`. That swaps the meanings of `a` and `b`, including the minima and barrier-height formulas. Because changing either the preregistered model or the implementation after this discrepancy was observed would silently alter a frozen protocol, this preregistration is retained verbatim below as provenance and marked invalid. A replacement Stage 0 preregistration must explicitly choose one convention, pin the exact implementation revision, and be merged before any new bistable outcome is inspected.
+
+No empirical result is licensed by this invalidated document. Existing executable tests are engineering/calibration tests only and must not be promoted to a preregistered scientific result under this protocol.
 
 ## Research question
 
