@@ -1,6 +1,6 @@
 # Fluctuation universality — Stage U2 preregistration
 
-Status: **preregistered; do not execute until the SciRust spectral-surrogate dependency is merged and NoiseLab is pinned to that merged commit**.
+Status: **preregistered; SciRust spectral-surrogate dependency pinned; do not execute until NoiseLab consumption code is qualified against the pinned revision**.
 
 This document freezes the Stage U2 cross-mechanism protocol before any U2 outcomes are inspected. It extends the already-recorded negative/diagnostic U1 work. It does not revise U0/U1 results and does not assert universality.
 
@@ -53,7 +53,7 @@ Use the existing Fisher–Yates/`SplitMix64` shuffled control from U0. It preser
 
 ### Null B — phase-randomized spectral surrogate
 
-Use the reusable SciRust spectral-surrogate primitive only after it is merged to SciRust `master` and NoiseLab pins the resulting immutable commit. The required contract is:
+Use the reusable SciRust spectral-surrogate primitive only from the immutable revision pinned by NoiseLab. The required contract is:
 
 - preserve DC and Nyquist bins when present;
 - preserve Fourier magnitudes up to transform roundoff;
@@ -61,7 +61,7 @@ Use the reusable SciRust spectral-surrogate primitive only after it is merged to
 - preserve real-valued reconstruction;
 - reject non-finite or otherwise unsupported input rather than silently modifying it.
 
-At preregistration time the candidate implementation is SciRust PR #1421 (`research/phase-randomized-surrogate`, head observed as `fdaf134cd8dfadd4c5870a1daacf9f87ccc1487f`). **That PR head is not an allowed scientific dependency.** Execution is blocked until the implementation is merged, requalified against its final base, and NoiseLab pins the merged SciRust commit.
+The preregistration-time candidate PR #1421 is no longer a permitted dependency reference. The qualified dependency is now pinned in `docs/research/dependencies/scirust-spectral-surrogate-u2.md` to SciRust `master` commit `0e2eaccac631b689f97c242c47bad11d433847d9`, which contains `scirust-signal/src/surrogate.rs` after PR #1422 merged. Stage U2 still must not execute until NoiseLab consumption code is explicitly qualified against that exact revision. If the dependency revision changes, a new explicit pin and requalification are required before execution.
 
 The phase-randomized null tests whether an apparent U2 signal exceeds what can be explained by the observed power spectrum/second-order Fourier structure. It does not preserve all nonlinear temporal structure.
 
@@ -112,7 +112,7 @@ No failed pair may be removed from the reported U2 matrix.
 - Do not use final/confirmatory holdouts from unrelated TDI programs.
 - Keep raw series, derived descriptors, surrogate seeds, source revisions and SciRust dependency revision addressable in the result artifact.
 - Treat SciRust as the provider of the generic spectral-surrogate primitive; do not duplicate FFT/RNG logic in NoiseLab.
-- If the SciRust primitive changes after merge, requalification is required and the exact consumed revision must remain recorded.
+- If the SciRust primitive changes after the pinned revision, requalification is required and the exact consumed revision must remain recorded.
 
 ## Stop condition
 
