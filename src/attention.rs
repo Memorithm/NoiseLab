@@ -25,6 +25,17 @@ pub enum AttentionNoiseSite {
     Value,
 }
 
+/// Reproducible intervention applied to one raw attention tensor.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AttentionPerturbationSpec {
+    /// Tensor receiving the additive Gaussian perturbation.
+    pub site: AttentionNoiseSite,
+    /// Standard deviation of the additive Gaussian perturbation.
+    pub noise_stddev: f64,
+    /// Deterministic SciRust RNG seed.
+    pub seed: u64,
+}
+
 /// Difference between one perturbed FLAT oracle execution and its clean control.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AttentionPerturbationResponse {
@@ -92,8 +103,8 @@ pub fn flat_rope_control(
 /// oracle execution.
 ///
 /// The same Q/K/V inputs, shape, attention configuration and RoPE configuration
-/// are used on both sides. Only the declared [`AttentionNoiseSite`] is changed.
-/// `noise_stddev == 0` skips RNG draws and therefore provides an exact
+/// are used on both sides. Only the intervention declared in `spec` is changed.
+/// `spec.noise_stddev == 0` skips RNG draws and therefore provides an exact
 /// bit-identical control path.
 pub fn evaluate_flat_rope_gaussian_perturbation(
     q: &[f32],
@@ -102,12 +113,12 @@ pub fn evaluate_flat_rope_gaussian_perturbation(
     shape: GroupedAttentionShape,
     config: FlatAttentionConfig,
     rotary: RotaryEmbeddingConfig,
-    site: AttentionNoiseSite,
-    noise_stddev: f64,
-    seed: u64,
+    spec: AttentionPerturbationSpec,
 ) -> Result<AttentionPerturbationResponse, AttentionExperimentError> {
-    if !noise_stddev.is_finite() || noise_stddev < 0.0 {
-        return Err(AttentionExperimentError::InvalidNoiseStddev(noise_stddev));
+    if !spec.noise_stddev.is_finite() || spec.noise_stddev < 0.0 {
+        return Err(AttentionExperimentError::InvalidNoiseStddev(
+            spec.noise_stddev,
+        ));
     }
 
     let control = flat_rope_control(q, k, v, shape, config, rotary)?;
@@ -115,13 +126,13 @@ pub fn evaluate_flat_rope_gaussian_perturbation(
     let mut perturbed_k = k.to_vec();
     let mut perturbed_v = v.to_vec();
 
-    if noise_stddev > 0.0 {
-        let target = match site {
+    if spec.noise_stddev > 0.0 {
+        let target = match spec.site {
             AttentionNoiseSite::Query => &mut perturbed_q,
             AttentionNoiseSite::Key => &mut perturbed_k,
             AttentionNoiseSite::Value => &mut perturbed_v,
         };
-        add_gaussian_in_place(target, noise_stddev, seed);
+        add_gaussian_in_place(target, spec.noise_stddev, spec.seed);
     }
 
     let perturbed = flat_rope_control(
@@ -137,9 +148,9 @@ pub fn evaluate_flat_rope_gaussian_perturbation(
     let (lse_rms_delta, lse_max_abs_delta) = delta_metrics(&control.lse, &perturbed.lse);
 
     Ok(AttentionPerturbationResponse {
-        site,
-        noise_stddev,
-        seed,
+        site: spec.site,
+        noise_stddev: spec.noise_stddev,
+        seed: spec.seed,
         output_rms_delta,
         output_max_abs_delta,
         lse_rms_delta,
@@ -222,6 +233,14 @@ mod tests {
         )
     }
 
+    fn spec(site: AttentionNoiseSite, noise_stddev: f64, seed: u64) -> AttentionPerturbationSpec {
+        AttentionPerturbationSpec {
+            site,
+            noise_stddev,
+            seed,
+        }
+    }
+
     #[test]
     fn zero_noise_is_an_exact_control_for_every_site() {
         let (q, k, v, shape, config, rotary) = case();
@@ -231,7 +250,13 @@ mod tests {
             AttentionNoiseSite::Value,
         ] {
             let response = evaluate_flat_rope_gaussian_perturbation(
-                &q, &k, &v, shape, config, rotary, site, 0.0, 42,
+                &q,
+                &k,
+                &v,
+                shape,
+                config,
+                rotary,
+                spec(site, 0.0, 42),
             )
             .unwrap();
             assert_eq!(response.output_rms_delta, 0.0);
@@ -251,9 +276,7 @@ mod tests {
             shape,
             config,
             rotary,
-            AttentionNoiseSite::Value,
-            0.15,
-            11,
+            spec(AttentionNoiseSite::Value, 0.15, 11),
         )
         .unwrap();
         assert!(response.output_rms_delta > 0.0);
@@ -267,7 +290,13 @@ mod tests {
         let (q, k, v, shape, config, rotary) = case();
         for site in [AttentionNoiseSite::Query, AttentionNoiseSite::Key] {
             let response = evaluate_flat_rope_gaussian_perturbation(
-                &q, &k, &v, shape, config, rotary, site, 0.15, 23,
+                &q,
+                &k,
+                &v,
+                shape,
+                config,
+                rotary,
+                spec(site, 0.15, 23),
             )
             .unwrap();
             assert!(response.output_rms_delta > 0.0);
@@ -285,9 +314,7 @@ mod tests {
             shape,
             config,
             rotary,
-            AttentionNoiseSite::Query,
-            0.2,
-            99,
+            spec(AttentionNoiseSite::Query, 0.2, 99),
         )
         .unwrap();
         let second = evaluate_flat_rope_gaussian_perturbation(
@@ -297,9 +324,7 @@ mod tests {
             shape,
             config,
             rotary,
-            AttentionNoiseSite::Query,
-            0.2,
-            99,
+            spec(AttentionNoiseSite::Query, 0.2, 99),
         )
         .unwrap();
         assert_eq!(first, second);
@@ -317,9 +342,7 @@ mod tests {
                     shape,
                     config,
                     rotary,
-                    AttentionNoiseSite::Query,
-                    invalid,
-                    1,
+                    spec(AttentionNoiseSite::Query, invalid, 1),
                 ),
                 Err(AttentionExperimentError::InvalidNoiseStddev(_))
             ));
