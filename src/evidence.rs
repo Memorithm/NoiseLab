@@ -60,7 +60,10 @@ impl Display for EvidenceError {
                 write!(formatter, "response {index} contains a non-finite value")
             }
             Self::NegativeSampleStddev { index } => {
-                write!(formatter, "response {index} has a negative sample standard deviation")
+                write!(
+                    formatter,
+                    "response {index} has a negative sample standard deviation"
+                )
             }
             Self::NonIncreasingCoordinate { index } => {
                 write!(
