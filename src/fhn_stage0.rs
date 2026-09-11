@@ -148,9 +148,9 @@ mod tests {
                 .iter()
                 .find(|response| response.noise_amplitude == noise_amplitude)
                 .unwrap();
-            let standard_error = standard_error(selected);
-            let conservative_minimum =
-                selected.mean_cv + FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * standard_error;
+            let selected_standard_error = standard_error(selected);
+            let conservative_minimum = selected.mean_cv
+                + FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * selected_standard_error;
             let conservative_edge = (responses[0].mean_cv
                 - FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * standard_error(&responses[0]))
             .min(
@@ -161,7 +161,7 @@ mod tests {
             CoherenceMinimum {
                 noise_amplitude,
                 mean_cv: selected.mean_cv,
-                standard_error,
+                standard_error: selected_standard_error,
                 conservative_minimum,
                 conservative_edge,
                 conservative_separation: conservative_edge - conservative_minimum,
