@@ -16,7 +16,8 @@ pub const BISTABLE_STAGE0_V2_SEEDS: [u64; 16] = [
 ];
 
 /// Frozen multiplicative grid around the independent Kramers control.
-pub const BISTABLE_STAGE0_V2_GRID_FACTORS: [f64; 7] = [0.25, 0.40, 0.63, 1.00, 1.58, 2.50, 4.00];
+pub const BISTABLE_STAGE0_V2_GRID_FACTORS: [f64; 7] =
+    [0.25, 0.40, 0.63, 1.00, 1.58, 2.50, 4.00];
 
 /// Fully materialized Stage 0 v2 primary-regime inputs.
 #[derive(Debug, Clone, PartialEq)]
