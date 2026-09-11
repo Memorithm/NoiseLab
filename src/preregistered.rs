@@ -8,8 +8,7 @@ use crate::langevin::{DoubleWellLangevin, LangevinError, LangevinRun};
 use crate::resonance::matched_kramers_noise_intensity;
 
 /// Git blob SHA of `docs/research/bistable-kramers-stage0-v2.md` at protocol freeze.
-pub const BISTABLE_STAGE0_V2_PROTOCOL_BLOB_SHA: &str =
-    "54cb4bfb9880e33117df3383864cb03e7bc706e2";
+pub const BISTABLE_STAGE0_V2_PROTOCOL_BLOB_SHA: &str = "54cb4bfb9880e33117df3383864cb03e7bc706e2";
 
 /// Paired seeds frozen by the Stage 0 v2 preregistration.
 pub const BISTABLE_STAGE0_V2_SEEDS: [u64; 16] = [
@@ -23,8 +22,7 @@ pub const BISTABLE_STAGE0_V2_GRID_FACTORS: [f64; 7] = [0.25, 0.40, 0.63, 1.00, 1
 pub const BISTABLE_STAGE0_V2_FALSIFICATION_FREQUENCY_HZ: f64 = 0.20;
 
 /// Git blob SHA of `docs/research/coherence-resonance.md` at protocol freeze.
-pub const FHN_COHERENCE_STAGE0_PROTOCOL_BLOB_SHA: &str =
-    "dafd7b7b4cf9764a96c1cdcc0c2fbd458a462445";
+pub const FHN_COHERENCE_STAGE0_PROTOCOL_BLOB_SHA: &str = "dafd7b7b4cf9764a96c1cdcc0c2fbd458a462445";
 
 /// Paired deterministic seeds frozen by the FHN coherence calibration protocol.
 pub const FHN_COHERENCE_STAGE0_SEEDS: [u64; 8] = [11, 23, 37, 41, 53, 67, 79, 97];
@@ -190,10 +188,7 @@ mod tests {
     #[test]
     fn fhn_stage0_materialization_matches_frozen_protocol() {
         let protocol = FhnCoherenceStage0::materialize().unwrap();
-        assert_eq!(
-            protocol.model,
-            FitzHughNagumo::new(0.01, 1.05).unwrap()
-        );
+        assert_eq!(protocol.model, FitzHughNagumo::new(0.01, 1.05).unwrap());
         assert_eq!(
             protocol.run,
             FhnRun::new(0.001, 80_000, 10_000, 0.0, 5).unwrap()
@@ -215,8 +210,6 @@ mod tests {
             .windows(2)
             .all(|pair| pair[0].is_finite() && pair[0] >= 0.0 && pair[0] < pair[1]));
         assert!(protocol.acceptance_interval[0] > protocol.noise_amplitudes[0]);
-        assert!(
-            protocol.acceptance_interval[1] < *protocol.noise_amplitudes.last().unwrap()
-        );
+        assert!(protocol.acceptance_interval[1] < *protocol.noise_amplitudes.last().unwrap());
     }
 }
