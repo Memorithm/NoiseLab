@@ -334,10 +334,7 @@ pub fn inter_spike_stats(
         return Err(FhnError::TooFewRequiredSpikes { min_spikes });
     }
     let valid_times = train.spike_times.iter().all(|time| time.is_finite())
-        && train
-            .spike_times
-            .windows(2)
-            .all(|pair| pair[1] > pair[0]);
+        && train.spike_times.windows(2).all(|pair| pair[1] > pair[0]);
     if train.spike_times.len() < min_spikes || !valid_times {
         return Err(FhnError::InvalidSpikeTrain {
             observed: train.spike_times.len(),
@@ -389,9 +386,7 @@ pub fn calibrate_coherence_resonance(
         return Err(FhnError::InvalidUncertaintyWeight);
     }
     for (index, &noise) in noise_amplitudes.iter().enumerate() {
-        if !noise.is_finite()
-            || noise < 0.0
-            || (index > 0 && noise <= noise_amplitudes[index - 1])
+        if !noise.is_finite() || noise < 0.0 || (index > 0 && noise <= noise_amplitudes[index - 1])
         {
             return Err(FhnError::InvalidNoiseAmplitude { index });
         }
@@ -559,8 +554,7 @@ mod tests {
         assert!(FhnRun::new(0.0, 100, 10, 0.0, 5).is_err());
         assert!(calibrate_coherence_resonance(model(), run(), &[0.1, 0.2], &[1], 1.0).is_err());
         assert!(
-            calibrate_coherence_resonance(model(), run(), &[0.1, 0.1, 0.2], &[1], 1.0)
-                .is_err()
+            calibrate_coherence_resonance(model(), run(), &[0.1, 0.1, 0.2], &[1], 1.0).is_err()
         );
         let malformed = FhnSpikeTrain {
             spike_times: vec![1.0, 0.5, 2.0],
