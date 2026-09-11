@@ -20,9 +20,9 @@ pub use calibration::{
 };
 pub use evidence::{detect_edge_separated_peak, EdgeSeparatedPeak, EvidenceError};
 pub use fhn::{
-    calibrate_coherence_resonance, inter_spike_stats, simulate_fhn_spikes,
-    CoherenceCalibration, CoherenceMinimum, CoherenceResponse, FhnError, FhnRun, FhnSpikeTrain,
-    FitzHughNagumo, InterSpikeStats,
+    calibrate_coherence_resonance, inter_spike_stats, simulate_fhn_spikes, CoherenceCalibration,
+    CoherenceMinimum, CoherenceResponse, FhnError, FhnRun, FhnSpikeTrain, FitzHughNagumo,
+    InterSpikeStats,
 };
 pub use langevin::{
     calibrate_kramers_matching, coherent_switching_response, simulate_double_well,
