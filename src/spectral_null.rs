@@ -45,9 +45,7 @@ mod tests {
 
     #[test]
     fn wrapper_does_not_silently_modify_length() {
-        let signal: Vec<f64> = (0..128)
-            .map(|index| (0.09 * index as f64).sin())
-            .collect();
+        let signal: Vec<f64> = (0..128).map(|index| (0.09 * index as f64).sin()).collect();
         let surrogate = spectral_phase_null(&signal, 9).unwrap();
         assert_eq!(surrogate.len(), signal.len());
     }
