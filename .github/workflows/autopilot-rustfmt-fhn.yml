@@ -1,0 +1,34 @@
+name: Autopilot rustfmt FHN Stage 0
+
+on:
+  push:
+    branches:
+      - autopilot/fhn-stage0-integrity-gate
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: autopilot/fhn-stage0-integrity-gate
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Apply canonical rustfmt
+        run: rustfmt src/fhn_stage0.rs
+      - name: Commit formatting only
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- src/fhn_stage0.rs; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/fhn_stage0.rs
+          git commit -m "style: apply canonical rustfmt"
+          git push origin HEAD:autopilot/fhn-stage0-integrity-gate
