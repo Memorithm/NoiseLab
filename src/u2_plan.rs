@@ -62,6 +62,24 @@ pub enum U2NullFamily {
     PhaseRandomizedSpectrum,
 }
 
+pub const U2_FROZEN_NULLS: [U2NullFamily; 2] = [
+    U2NullFamily::ShuffledMarginal,
+    U2NullFamily::PhaseRandomizedSpectrum,
+];
+
+/// One outcome-blind surrogate job fixed entirely by preregistered indices.
+///
+/// The descriptor contains no observed series, score, p-value or decision. It
+/// can therefore be persisted before execution as an auditable work manifest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct U2SurrogateJob {
+    pub pair_index: usize,
+    pub pair: U2Pair,
+    pub null_family: U2NullFamily,
+    pub repetition: usize,
+    pub seed: u64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct U2ExecutionPlan {
     pub pairs: &'static [U2Pair; U2_UNORDERED_PAIRS],
@@ -98,6 +116,33 @@ impl U2ExecutionPlan {
         let repetition_tag = (repetition as u64).wrapping_mul(0xbf58_476d_1ce4_e5b9);
         Some(self.seed_root ^ null_tag ^ pair_tag ^ repetition_tag)
     }
+
+    /// Materialize one preregistered surrogate job without observing outcomes.
+    #[must_use]
+    pub const fn surrogate_job(
+        self,
+        pair_index: usize,
+        null_family: U2NullFamily,
+        repetition: usize,
+    ) -> Option<U2SurrogateJob> {
+        let seed = match self.surrogate_seed(pair_index, null_family, repetition) {
+            Some(seed) => seed,
+            None => return None,
+        };
+        Some(U2SurrogateJob {
+            pair_index,
+            pair: self.pairs[pair_index],
+            null_family,
+            repetition,
+            seed,
+        })
+    }
+
+    /// Exact number of preregistered surrogate jobs in the frozen U2 panel.
+    #[must_use]
+    pub const fn surrogate_job_count(self) -> usize {
+        U2_UNORDERED_PAIRS * U2_FROZEN_NULLS.len() * self.surrogates_per_null
+    }
 }
 
 #[cfg(test)]
@@ -133,6 +178,25 @@ mod tests {
     }
 
     #[test]
+    fn job_manifest_is_complete_without_outcome_data() {
+        let plan = U2ExecutionPlan::preregistered(7).unwrap();
+        assert_eq!(
+            plan.surrogate_job_count(),
+            U2_UNORDERED_PAIRS * 2 * U2_MIN_SURROGATES_PER_NULL
+        );
+        let job = plan
+            .surrogate_job(5, U2NullFamily::PhaseRandomizedSpectrum, 198)
+            .unwrap();
+        assert_eq!(job.pair_index, 5);
+        assert_eq!(job.pair, U2_FROZEN_PAIRS[5]);
+        assert_eq!(job.repetition, 198);
+        assert_eq!(
+            Some(job.seed),
+            plan.surrogate_seed(5, U2NullFamily::PhaseRandomizedSpectrum, 198)
+        );
+    }
+
+    #[test]
     fn out_of_contract_indices_are_rejected() {
         let plan = U2ExecutionPlan::preregistered(1).unwrap();
         assert_eq!(
@@ -145,6 +209,10 @@ mod tests {
                 U2NullFamily::ShuffledMarginal,
                 U2_MIN_SURROGATES_PER_NULL
             ),
+            None
+        );
+        assert_eq!(
+            plan.surrogate_job(U2_UNORDERED_PAIRS, U2NullFamily::ShuffledMarginal, 0),
             None
         );
     }
