@@ -11,6 +11,7 @@ pub mod attention;
 pub mod calibration;
 pub mod evidence;
 pub mod fhn;
+pub mod fhn_stage0;
 pub mod langevin;
 pub mod laser_calibration;
 pub mod preregistered;
@@ -31,6 +32,7 @@ pub use fhn::{
     CoherenceMinimum, CoherenceResponse, FhnError, FhnRun, FhnSpikeTrain, FitzHughNagumo,
     InterSpikeStats,
 };
+pub use fhn_stage0::{classify_fhn_stage0, FhnStage0Decision};
 pub use langevin::{
     calibrate_kramers_matching, coherent_switching_response, simulate_double_well,
     CoherentResponse, DoubleWellLangevin, KramersCalibration, LangevinError, LangevinRun,
