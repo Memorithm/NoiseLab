@@ -22,6 +22,7 @@ pub mod resonance;
 pub mod scirust_bridge;
 pub mod spectral_null;
 pub mod u2_decision;
+pub mod u2_manifest;
 pub mod u2_plan;
 pub mod u2_readiness;
 pub mod universality;
@@ -78,6 +79,7 @@ pub use scirust_bridge::{
 };
 pub use spectral_null::spectral_phase_null;
 pub use u2_decision::{classify_stage_u2, StageU2Decision, StageU2DecisionError};
+pub use u2_manifest::materialize_u2_manifest;
 pub use u2_plan::{
     U2ExecutionPlan, U2NullFamily, U2Pair, U2SourceFamily, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES,
 };
