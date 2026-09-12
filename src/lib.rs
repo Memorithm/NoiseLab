@@ -13,6 +13,7 @@ pub mod calibration_evidence;
 pub mod calibration_ladder;
 pub mod evidence;
 pub mod fhn;
+pub mod fhn_horizon;
 pub mod fhn_stage0;
 pub mod information;
 pub mod langevin;
@@ -46,6 +47,9 @@ pub use fhn::{
     calibrate_coherence_resonance, inter_spike_stats, simulate_fhn_spikes, CoherenceCalibration,
     CoherenceMinimum, CoherenceResponse, FhnError, FhnRun, FhnSpikeTrain, FitzHughNagumo,
     InterSpikeStats,
+};
+pub use fhn_horizon::{
+    classify_fhn_horizon_robustness, FhnHorizonRobustness, FHN_HORIZON_STAGE0_STEPS,
 };
 pub use fhn_stage0::{classify_fhn_stage0, FhnStage0Decision};
 pub use information::{
