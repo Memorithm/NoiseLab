@@ -100,8 +100,8 @@ mod tests {
                 .find(|response| response.noise_amplitude == noise_amplitude)
                 .unwrap();
             let standard_error = selected.sample_stddev_cv / (selected.replicates as f64).sqrt();
-            let conservative_minimum = selected.mean_cv
-                + FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * standard_error;
+            let conservative_minimum =
+                selected.mean_cv + FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * standard_error;
             let edge_standard_error =
                 responses[0].sample_stddev_cv / (responses[0].replicates as f64).sqrt();
             let conservative_edge = responses[0].mean_cv
