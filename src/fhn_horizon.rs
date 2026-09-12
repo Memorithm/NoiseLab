@@ -15,9 +15,7 @@ pub enum FhnHorizonRobustness {
     ProtocolMismatch,
     NotRobust,
     StableNoInteriorMinimum,
-    StableAccepted {
-        noise_amplitudes: [f64; 3],
-    },
+    StableAccepted { noise_amplitudes: [f64; 3] },
 }
 
 #[must_use]
@@ -101,8 +99,7 @@ mod tests {
                 .iter()
                 .find(|response| response.noise_amplitude == noise_amplitude)
                 .unwrap();
-            let standard_error =
-                selected.sample_stddev_cv / (selected.replicates as f64).sqrt();
+            let standard_error = selected.sample_stddev_cv / (selected.replicates as f64).sqrt();
             let conservative_minimum = selected.mean_cv
                 + FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT * standard_error;
             let edge_standard_error =
@@ -128,8 +125,7 @@ mod tests {
 
     #[test]
     fn accepts_stable_interior_minimum_across_all_preregistered_horizons() {
-        let observations =
-            FHN_HORIZON_STAGE0_STEPS.map(|steps| (steps, calibration(Some(0.075))));
+        let observations = FHN_HORIZON_STAGE0_STEPS.map(|steps| (steps, calibration(Some(0.075))));
         assert_eq!(
             classify_fhn_horizon_robustness(&observations),
             FhnHorizonRobustness::StableAccepted {
