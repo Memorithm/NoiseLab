@@ -56,6 +56,10 @@ pub enum CalibrationReceiptError {
     InvalidEvidenceRef,
     InvalidEvidenceDigest,
     DuplicateStage(CalibrationStage),
+    OutOfOrderStage {
+        expected: CalibrationStage,
+        found: CalibrationStage,
+    },
 }
 
 impl fmt::Display for CalibrationReceiptError {
@@ -70,21 +74,50 @@ impl fmt::Display for CalibrationReceiptError {
                 formatter.write_str("invalid lowercase SHA-256 calibration evidence digest")
             }
             Self::DuplicateStage(stage) => write!(formatter, "duplicate receipt for {stage:?}"),
+            Self::OutOfOrderStage { expected, found } => write!(
+                formatter,
+                "out-of-order calibration receipt: expected {expected:?}, found {found:?}"
+            ),
         }
     }
 }
 
 impl std::error::Error for CalibrationReceiptError {}
 
+const CALIBRATION_ORDER: [CalibrationStage; 4] = [
+    CalibrationStage::DrivenOscillator,
+    CalibrationStage::SemiconductorLaser,
+    CalibrationStage::BistableKramers,
+    CalibrationStage::FitzHughNagumo,
+];
+
 /// Derive the existing outcome-blind gate flags from provenance-bearing receipts.
 ///
-/// This validates receipt structure and uniqueness only. It deliberately does
-/// not inspect or endorse the referenced scientific evidence.
+/// This validates receipt structure, uniqueness, and the frozen calibration
+/// order only. It deliberately does not inspect or endorse the referenced
+/// scientific evidence.
 pub fn evidence_from_receipts(
     receipts: &[CalibrationReceipt],
 ) -> Result<CalibrationEvidence, CalibrationReceiptError> {
     let mut evidence = CalibrationEvidence::none();
-    for receipt in receipts {
+    for (index, receipt) in receipts.iter().enumerate() {
+        let expected = CALIBRATION_ORDER
+            .get(index)
+            .copied()
+            .ok_or(CalibrationReceiptError::DuplicateStage(receipt.stage))?;
+        if receipt.stage != expected {
+            if receipts[..index]
+                .iter()
+                .any(|previous| previous.stage == receipt.stage)
+            {
+                return Err(CalibrationReceiptError::DuplicateStage(receipt.stage));
+            }
+            return Err(CalibrationReceiptError::OutOfOrderStage {
+                expected,
+                found: receipt.stage,
+            });
+        }
+
         let slot = match receipt.stage {
             CalibrationStage::DrivenOscillator => &mut evidence.driven_oscillator,
             CalibrationStage::SemiconductorLaser => &mut evidence.semiconductor_laser,
@@ -177,6 +210,31 @@ mod tests {
             Err(CalibrationReceiptError::DuplicateStage(
                 CalibrationStage::DrivenOscillator
             ))
+        );
+    }
+
+    #[test]
+    fn later_stage_cannot_skip_frozen_prerequisites() {
+        assert_eq!(
+            evidence_from_receipts(&[
+                receipt(CalibrationStage::DrivenOscillator),
+                receipt(CalibrationStage::BistableKramers),
+            ]),
+            Err(CalibrationReceiptError::OutOfOrderStage {
+                expected: CalibrationStage::SemiconductorLaser,
+                found: CalibrationStage::BistableKramers,
+            })
+        );
+    }
+
+    #[test]
+    fn first_receipt_must_be_driven_oscillator() {
+        assert_eq!(
+            evidence_from_receipts(&[receipt(CalibrationStage::SemiconductorLaser)]),
+            Err(CalibrationReceiptError::OutOfOrderStage {
+                expected: CalibrationStage::DrivenOscillator,
+                found: CalibrationStage::SemiconductorLaser,
+            })
         );
     }
 
