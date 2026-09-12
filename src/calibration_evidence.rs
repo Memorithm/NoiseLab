@@ -1,7 +1,8 @@
 //! Provenance-bearing receipts for the NoiseLab calibration ladder.
 //!
-//! A receipt states where calibration evidence was produced. It does not verify
-//! the scientific result and cannot by itself turn an experiment into proof.
+//! A receipt states where calibration evidence was produced and pins the exact
+//! referenced artifact digest. It does not verify the scientific result and
+//! cannot by itself turn an experiment into proof.
 
 use core::fmt;
 
@@ -15,6 +16,7 @@ pub struct CalibrationReceipt {
     pub repository: String,
     pub commit_sha: String,
     pub evidence_ref: String,
+    pub evidence_sha256: String,
 }
 
 impl CalibrationReceipt {
@@ -23,22 +25,26 @@ impl CalibrationReceipt {
         repository: impl Into<String>,
         commit_sha: impl Into<String>,
         evidence_ref: impl Into<String>,
+        evidence_sha256: impl Into<String>,
     ) -> Result<Self, CalibrationReceiptError> {
         let repository = repository.into();
         let commit_sha = commit_sha.into();
         let evidence_ref = evidence_ref.into();
+        let evidence_sha256 = evidence_sha256.into();
 
         validate_repository(&repository)?;
         validate_commit(&commit_sha)?;
         if evidence_ref.trim().is_empty() || evidence_ref.len() > MAX_EVIDENCE_REF_BYTES {
             return Err(CalibrationReceiptError::InvalidEvidenceRef);
         }
+        validate_sha256(&evidence_sha256)?;
 
         Ok(Self {
             stage,
             repository,
             commit_sha,
             evidence_ref,
+            evidence_sha256,
         })
     }
 }
@@ -48,6 +54,7 @@ pub enum CalibrationReceiptError {
     InvalidRepository,
     InvalidCommitSha,
     InvalidEvidenceRef,
+    InvalidEvidenceDigest,
     DuplicateStage(CalibrationStage),
 }
 
@@ -58,6 +65,9 @@ impl fmt::Display for CalibrationReceiptError {
             Self::InvalidCommitSha => formatter.write_str("invalid full Git commit SHA"),
             Self::InvalidEvidenceRef => {
                 formatter.write_str("invalid calibration evidence reference")
+            }
+            Self::InvalidEvidenceDigest => {
+                formatter.write_str("invalid lowercase SHA-256 calibration evidence digest")
             }
             Self::DuplicateStage(stage) => write!(formatter, "duplicate receipt for {stage:?}"),
         }
@@ -115,9 +125,23 @@ fn validate_commit(commit: &str) -> Result<(), CalibrationReceiptError> {
     Ok(())
 }
 
+fn validate_sha256(digest: &str) -> Result<(), CalibrationReceiptError> {
+    if digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    {
+        return Err(CalibrationReceiptError::InvalidEvidenceDigest);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const EVIDENCE_SHA256: &str =
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
     fn receipt(stage: CalibrationStage) -> CalibrationReceipt {
         CalibrationReceipt::new(
@@ -125,6 +149,7 @@ mod tests {
             "Memorithm/NoiseLab",
             "0123456789abcdef0123456789abcdef01234567",
             "results/calibration.json",
+            EVIDENCE_SHA256,
         )
         .expect("valid receipt")
     }
@@ -163,6 +188,7 @@ mod tests {
                 "NoiseLab",
                 "0123456789abcdef0123456789abcdef01234567",
                 "evidence",
+                EVIDENCE_SHA256,
             ),
             Err(CalibrationReceiptError::InvalidRepository)
         );
@@ -172,8 +198,19 @@ mod tests {
                 "Memorithm/NoiseLab",
                 "deadbeef",
                 "evidence",
+                EVIDENCE_SHA256,
             ),
             Err(CalibrationReceiptError::InvalidCommitSha)
+        );
+        assert_eq!(
+            CalibrationReceipt::new(
+                CalibrationStage::DrivenOscillator,
+                "Memorithm/NoiseLab",
+                "0123456789abcdef0123456789abcdef01234567",
+                "evidence",
+                "ABCDEF",
+            ),
+            Err(CalibrationReceiptError::InvalidEvidenceDigest)
         );
     }
 }
