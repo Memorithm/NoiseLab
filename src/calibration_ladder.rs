@@ -54,7 +54,9 @@ impl CalibrationEvidence {
 
     pub fn validate_complex_system_entry(self) -> Result<(), CalibrationGateError> {
         if !self.driven_oscillator {
-            return Err(CalibrationGateError::Missing(CalibrationStage::DrivenOscillator));
+            return Err(CalibrationGateError::Missing(
+                CalibrationStage::DrivenOscillator,
+            ));
         }
         if !self.semiconductor_laser {
             return Err(CalibrationGateError::Missing(
@@ -62,10 +64,14 @@ impl CalibrationEvidence {
             ));
         }
         if !self.bistable_kramers {
-            return Err(CalibrationGateError::Missing(CalibrationStage::BistableKramers));
+            return Err(CalibrationGateError::Missing(
+                CalibrationStage::BistableKramers,
+            ));
         }
         if !self.fitzhugh_nagumo {
-            return Err(CalibrationGateError::Missing(CalibrationStage::FitzHughNagumo));
+            return Err(CalibrationGateError::Missing(
+                CalibrationStage::FitzHughNagumo,
+            ));
         }
         Ok(())
     }
