@@ -18,6 +18,7 @@ pub mod information;
 pub mod langevin;
 pub mod laser_calibration;
 pub mod preregistered;
+pub mod protocol_provenance;
 pub mod resonance;
 pub mod scirust_bridge;
 pub mod spectral_null;
@@ -66,6 +67,10 @@ pub use preregistered::{
     FHN_COHERENCE_STAGE0_ACCEPTANCE_INTERVAL, FHN_COHERENCE_STAGE0_NOISE_AMPLITUDES,
     FHN_COHERENCE_STAGE0_PROTOCOL_BLOB_SHA, FHN_COHERENCE_STAGE0_SEEDS,
     FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT,
+};
+pub use protocol_provenance::{
+    validate_protocol_provenance, GitIdentityKind, ProtocolProvenance, ProtocolProvenanceError,
+    PROTOCOL_PROVENANCE,
 };
 pub use resonance::{
     detect_interior_response_peak, kramers_escape_rate,
