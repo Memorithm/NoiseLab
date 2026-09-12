@@ -56,7 +56,9 @@ impl fmt::Display for CalibrationReceiptError {
         match self {
             Self::InvalidRepository => formatter.write_str("invalid owner/repository identity"),
             Self::InvalidCommitSha => formatter.write_str("invalid full Git commit SHA"),
-            Self::InvalidEvidenceRef => formatter.write_str("invalid calibration evidence reference"),
+            Self::InvalidEvidenceRef => {
+                formatter.write_str("invalid calibration evidence reference")
+            }
             Self::DuplicateStage(stage) => write!(formatter, "duplicate receipt for {stage:?}"),
         }
     }
