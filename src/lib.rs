@@ -34,9 +34,7 @@ pub use calibration::{
     measure_steady_state_displacement_amplitude, sweep_linear_resonance, CalibrationError,
     DrivenLinearOscillator, LinearResonanceCalibration, ResponseMeasurement,
 };
-pub use calibration_ladder::{
-    CalibrationEvidence, CalibrationGateError, CalibrationStage,
-};
+pub use calibration_ladder::{CalibrationEvidence, CalibrationGateError, CalibrationStage};
 pub use evidence::{detect_edge_separated_peak, EdgeSeparatedPeak, EvidenceError};
 pub use fhn::{
     calibrate_coherence_resonance, inter_spike_stats, simulate_fhn_spikes, CoherenceCalibration,
