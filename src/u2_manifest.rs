@@ -48,7 +48,14 @@ mod tests {
         let jobs = materialize_u2_manifest(plan);
         let identities = jobs
             .iter()
-            .map(|job| (job.pair_index, job.null_family as u8, job.repetition, job.seed))
+            .map(|job| {
+                (
+                    job.pair_index,
+                    job.null_family as u8,
+                    job.repetition,
+                    job.seed,
+                )
+            })
             .collect::<BTreeSet<_>>();
         assert_eq!(identities.len(), jobs.len());
     }
