@@ -56,6 +56,10 @@ pub enum ProtocolProvenanceError {
     EmptyIdentityField,
     /// A declared immutable Git identity is not a full lowercase SHA-1.
     InvalidGitSha1,
+    /// Two catalog entries use the same stable key.
+    DuplicateKey,
+    /// Two catalog entries alias the same repository/object identity.
+    DuplicateGitObject,
 }
 
 /// Frozen outcome-blind provenance catalog for the active calibration ladder and U2 preflight.
@@ -80,12 +84,30 @@ pub const PROTOCOL_PROVENANCE: [ProtocolProvenance; 3] = [
     },
 ];
 
-/// Validate every immutable identity in the active outcome-blind catalog.
-pub fn validate_protocol_provenance() -> Result<(), ProtocolProvenanceError> {
-    for record in PROTOCOL_PROVENANCE {
+/// Validate immutable identities and reject ambiguous aliases in a provenance catalog.
+pub fn validate_provenance_catalog(
+    catalog: &[ProtocolProvenance],
+) -> Result<(), ProtocolProvenanceError> {
+    for (index, record) in catalog.iter().copied().enumerate() {
         record.validate()?;
+        for previous in &catalog[..index] {
+            if previous.key == record.key {
+                return Err(ProtocolProvenanceError::DuplicateKey);
+            }
+            if previous.repository == record.repository
+                && previous.kind == record.kind
+                && previous.sha == record.sha
+            {
+                return Err(ProtocolProvenanceError::DuplicateGitObject);
+            }
+        }
     }
     Ok(())
+}
+
+/// Validate every immutable identity in the active outcome-blind catalog.
+pub fn validate_protocol_provenance() -> Result<(), ProtocolProvenanceError> {
+    validate_provenance_catalog(&PROTOCOL_PROVENANCE)
 }
 
 #[cfg(test)]
@@ -120,6 +142,32 @@ mod tests {
         assert_eq!(
             malformed.validate(),
             Err(ProtocolProvenanceError::InvalidGitSha1)
+        );
+    }
+
+    #[test]
+    fn duplicate_keys_fail_closed() {
+        let first = PROTOCOL_PROVENANCE[0];
+        let duplicate = ProtocolProvenance {
+            sha: FHN_COHERENCE_STAGE0_PROTOCOL_BLOB_SHA,
+            ..first
+        };
+        assert_eq!(
+            validate_provenance_catalog(&[first, duplicate]),
+            Err(ProtocolProvenanceError::DuplicateKey)
+        );
+    }
+
+    #[test]
+    fn duplicate_git_objects_fail_closed() {
+        let first = PROTOCOL_PROVENANCE[0];
+        let alias = ProtocolProvenance {
+            key: "alias",
+            ..first
+        };
+        assert_eq!(
+            validate_provenance_catalog(&[first, alias]),
+            Err(ProtocolProvenanceError::DuplicateGitObject)
         );
     }
 }
