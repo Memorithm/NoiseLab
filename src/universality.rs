@@ -189,6 +189,44 @@ pub fn multiscale_trace(
     multiscale_trace_standardized(&standardized, scales)
 }
 
+/// Observed multiscale comparison without surrogate testing.
+///
+/// This is the shared building block for Stage U2 dual-null analysis: compute
+/// descriptor distances once on the observed pair, then recompute the same
+/// score on surrogates. It does not change U0/U1 decision labels or scales.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObservedMultiscaleComparison {
+    pub scale_distances: Vec<ScaleDistance>,
+    /// First-scale distance minus last-scale distance. Positive means convergence.
+    pub convergence_score: f64,
+    pub fine_scale_distance: f64,
+    pub terminal_scale_distance: f64,
+}
+
+/// Compute the U0 multiscale descriptor distances and convergence score for one pair.
+pub fn observed_multiscale_comparison(
+    series_a: &[f64],
+    series_b: &[f64],
+    scales: &[usize],
+) -> Result<ObservedMultiscaleComparison, UniversalityError> {
+    validate_series(series_a, "series_a")?;
+    validate_series(series_b, "series_b")?;
+    validate_scales(series_a.len(), scales)?;
+    validate_scales(series_b.len(), scales)?;
+    let standardized_a = standardize(series_a, "series_a")?;
+    let standardized_b = standardize(series_b, "series_b")?;
+    let trace_a = multiscale_trace_standardized(&standardized_a, scales)?;
+    let trace_b = multiscale_trace_standardized(&standardized_b, scales)?;
+    let scale_distances = trace_distances(&trace_a, &trace_b);
+    let convergence = convergence_score(&scale_distances);
+    Ok(ObservedMultiscaleComparison {
+        fine_scale_distance: scale_distances.first().map_or(0.0, |point| point.distance),
+        terminal_scale_distance: scale_distances.last().map_or(0.0, |point| point.distance),
+        scale_distances,
+        convergence_score: convergence,
+    })
+}
+
 /// Compare two fluctuation series across scales and test whether the observed
 /// convergence exceeds independently shuffled surrogate controls.
 ///
