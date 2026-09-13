@@ -123,3 +123,14 @@ Stage U2 is complete when all six unordered pairs among the four frozen source f
 2. a recorded protocol/implementation failure that prevents a valid comparison.
 
 The stage must stop without retuning after that matrix is complete. Any mechanism investigation motivated by a candidate belongs to a separately preregistered follow-up.
+
+## Executable runner (implementation note)
+
+Stage U2 is now executable via `examples/fluctuation_u2_report.rs` and
+`run_stage_u2_panel`. The runner calls the outcome-blind readiness gate before
+any pair outcome, materializes the surrogate-job manifest, and classifies each
+of the six frozen pairs under both null families.
+
+- Non-scientific smoke (CI / default example): `NOISELAB_U2_SMOKE=1` (19 surrogates).
+- Scientific load: `NOISELAB_U2_FULL=1` (199 surrogates).
+- Smoke output must **not** be recorded as `fluctuation-universality-u2-results.md`.

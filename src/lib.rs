@@ -27,8 +27,11 @@ pub mod u2_decision;
 pub mod u2_manifest;
 pub mod u2_plan;
 pub mod u2_readiness;
+pub mod u2_sources;
 pub mod universality;
 pub mod universality_panel;
+pub mod universality_u2;
+pub mod universality_u2_panel;
 
 pub use attention::{
     evaluate_flat_rope_gaussian_perturbation, flat_rope_control, AttentionExperimentError,
@@ -97,11 +100,24 @@ pub use u2_readiness::{
     U2_SOURCE_FAMILIES, U2_UNORDERED_PAIRS,
 };
 pub use universality::{
-    multiscale_trace, test_fluctuation_universality, FluctuationSignature, MultiscaleTrace,
-    ScaleDistance, UniversalityError, UniversalityEvidence, UniversalityTestConfig,
-    UniversalityTestResult,
+    multiscale_trace, observed_multiscale_comparison, test_fluctuation_universality,
+    FluctuationSignature, MultiscaleTrace, ObservedMultiscaleComparison, ScaleDistance,
+    UniversalityError, UniversalityEvidence, UniversalityTestConfig, UniversalityTestResult,
 };
 pub use universality_panel::{
     run_stage_u1_panel, StageU1Comparison, StageU1Error, StageU1PairPurpose, StageU1PanelConfig,
     StageU1PanelResult, StageU1Source,
+};
+
+pub use u2_sources::{
+    generate_u2_residuals, residual_for_family, U2ResidualProvenance, U2ResidualSeries,
+    U2SourceError, U2_DATA_SEED_ROOT, U2_SOURCE_BURN_IN, U2_SOURCE_SAMPLES,
+};
+pub use universality_u2::{
+    analyze_u2_pair, StageU2AnalysisError, StageU2PairAnalysis, StageU2PairRequest,
+    SPECTRAL_RIGHT_SEED_TAG,
+};
+pub use universality_u2_panel::{
+    run_stage_u2_panel, StageU2PanelConfig, StageU2PanelError, StageU2PanelMode,
+    StageU2PanelResult, U2_SMOKE_SURROGATES_PER_NULL, U2_SURROGATE_SEED_ROOT,
 };
