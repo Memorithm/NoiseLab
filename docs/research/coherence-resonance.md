@@ -12,12 +12,16 @@ This calibration consumes SciRust from the exact immutable revision:
 
 ```text
 repository = https://github.com/Memorithm/scirust.git
-revision   = f57d598bf03e5dfb16ec6423e4e43105a77540d3
+revision   = 0e2eaccac631b689f97c242c47bad11d433847d9
 crate      = scirust-sim
 primitive  = SplitMix64
 ```
 
-`Cargo.toml` pins that revision explicitly. The stochastic realizations therefore cannot silently change when SciRust `master` moves. Any future SciRust revision change is a protocol/dependency change that must be reviewed and requalified on a new NoiseLab head.
+`Cargo.toml` pins that revision explicitly for both `scirust-sim` and `scirust-signal`. The stochastic realizations therefore cannot silently change when SciRust `master` moves. Any future SciRust revision change is a protocol/dependency change that must be reviewed and requalified on a new NoiseLab head.
+
+### Pin-sync note (requalification)
+
+Earlier drafts of this living protocol named SciRust `f57d598bf03e5dfb16ec6423e4e43105a77540d3` (the initial audited revision recorded in `docs/SCIRUST_REUSE.md`). The active NoiseLab dependency is `0e2eacc…` as in `Cargo.toml`; this document is aligned to that pin as a **requalification / pin sync**, not a silent rewrite of past outcomes. Any evidence previously recorded under `f57d598…` remains historically accurate under that SHA and must not be forged onto `0e2eacc…`. Before claiming outcomes that span both revisions, re-run this protocol under the active pin.
 
 ## Model
 
