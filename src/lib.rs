@@ -52,7 +52,11 @@ pub use fhn::{
     InterSpikeStats,
 };
 pub use fhn_horizon::{
-    classify_fhn_horizon_robustness, FhnHorizonRobustness, FHN_HORIZON_STAGE0_STEPS,
+    classify_fhn_horizon_robustness, run_fhn_horizon_stage0, FhnHorizonRobustness,
+    FhnHorizonStage0Config, FhnHorizonStage0Error, FhnHorizonStage0HorizonDecision,
+    FhnHorizonStage0Mode, FhnHorizonStage0Observation, FhnHorizonStage0Result,
+    FhnHorizonStage0Summary, FHN_HORIZON_SMOKE_BURN_IN_STEPS, FHN_HORIZON_SMOKE_STEPS,
+    FHN_HORIZON_STAGE0_BURN_IN_STEPS, FHN_HORIZON_STAGE0_STEPS,
 };
 pub use fhn_stage0::{classify_fhn_stage0, FhnStage0Decision};
 pub use information::{

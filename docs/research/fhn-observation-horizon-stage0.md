@@ -107,3 +107,21 @@ Primary source: https://arxiv.org/abs/2608.03454
 ## Provenance rule
 
 This document must be committed before any execution performed specifically for this horizon comparison. Results, including negative or inconclusive outcomes, must be recorded without editing these frozen horizons, seeds, grid coordinates, burn-in, decision classes, or acceptance interval.
+
+## Executable runner (implementation note)
+
+This control is executable via `examples/fhn_horizon_stage0_report.rs` and
+`run_fhn_horizon_stage0`. The runner materializes the parent FHN Stage 0 factors
+unchanged, evaluates the three declared total-step horizons fail-closed, records
+per-horizon Stage 0 decisions (including insufficient-spike failures), and applies
+`classify_fhn_horizon_robustness` only when all three scientific calibrations
+complete.
+
+- Non-scientific smoke (CI / default example): abbreviated horizons
+  `[2_000, 4_000, 8_000]` via default or `NOISELAB_FHN_HORIZON_SMOKE=1`.
+- Scientific load: `NOISELAB_FHN_HORIZON_FULL=1` (preregistered
+  `[40_000, 80_000, 160_000]`).
+- Smoke output must **not** be recorded as a horizon-robustness results file.
+- No scientific robustness outcome is claimed by shipping the runner alone; a
+  results record requires an actual full preregistered panel run and the producing
+  commit SHA.
