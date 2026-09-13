@@ -4,11 +4,15 @@ NoiseLab is a research bench, not a second scientific-computing platform. Generi
 
 ## Pinned upstream state
 
-Initial audited revision:
+Initial audited revision (historical provenance):
 
 `Memorithm/scirust@f57d598bf03e5dfb16ec6423e4e43105a77540d3`
 
-The pin is deliberate. Research artifacts must record the exact SciRust revision used to generate evidence. Upgrading the pin is a scientific change when it can alter generated samples, spectra, trajectories or metrics.
+Active dependency pin (matches `Cargo.toml` for `scirust-sim` and `scirust-signal`):
+
+`Memorithm/scirust@0e2eaccac631b689f97c242c47bad11d433847d9`
+
+The pin is deliberate. Research artifacts must record the exact SciRust revision used to generate evidence. Upgrading the pin is a scientific change when it can alter generated samples, spectra, trajectories or metrics. Living protocol documents that previously named the initial audited revision are aligned to this active pin as a **requalification / pin sync**; they must be re-run under `0e2eacc…` before claiming cross-revision outcomes. Past outcome records that named `f57d598…` remain historically accurate and must not be rewritten.
 
 ## Reused now
 

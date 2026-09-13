@@ -212,8 +212,11 @@ fn measure_relaxation_period(
 
 /// Private NoiseLab copy of SciRust Studio's trajectory-period estimator.
 ///
-/// Provenance: `scirust-studio-runtime/src/measure.rs` at SciRust revision
-/// `f57d598bf03e5dfb16ec6423e4e43105a77540d3`. The upstream function is
+/// Provenance: originally taken from `scirust-studio-runtime/src/measure.rs` at
+/// SciRust revision `f57d598bf03e5dfb16ec6423e4e43105a77540d3` (initial audited
+/// revision). NoiseLab's active SciRust dependency pin is
+/// `0e2eaccac631b689f97c242c47bad11d433847d9` (see `Cargo.toml`); this comment
+/// records copy provenance, not a second Cargo pin. The upstream function is
 /// `pub(crate)`, so NoiseLab keeps this control local rather than pinning an
 /// unmerged SciRust branch. The algorithm uses linearly interpolated upward
 /// crossings from the second half of the trajectory, exactly matching the

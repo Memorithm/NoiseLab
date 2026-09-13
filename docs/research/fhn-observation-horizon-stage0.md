@@ -13,10 +13,14 @@ Parent protocol: `docs/research/coherence-resonance.md`.
 The parent protocol pins SciRust revision:
 
 ```text
-f57d598bf03e5dfb16ec6423e4e43105a77540d3
+0e2eaccac631b689f97c242c47bad11d433847d9
 ```
 
 This robustness control must use the same dependency revision and the same FHN implementation as the parent protocol. A dependency or implementation change invalidates direct comparison and requires a new Stage 0.
+
+### Pin-sync note (requalification)
+
+Earlier Stage 0 text named SciRust `f57d598bf03e5dfb16ec6423e4e43105a77540d3` to match the then-stated parent pin. The parent living protocol and `Cargo.toml` now use `0e2eacc…`; this child document is aligned to the same active pin as a **requalification / pin sync**, not a rewrite of scientific history. No horizon-robustness outcome is claimed by this update. The protocol must be re-run under `0e2eacc…` before claiming results, and any past records that named `f57d598…` (if present) must remain historically accurate under that SHA.
 
 ## Research question
 
