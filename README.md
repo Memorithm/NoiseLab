@@ -38,10 +38,10 @@ subject to explicit safety/resource constraints and comparison against a no-pert
 
 NoiseLab intentionally reuses pinned SciRust primitives instead of creating competing implementations.
 
-Current pin:
+Current pin used by both `scirust-sim` and `scirust-signal` in `Cargo.toml`:
 
 ```text
-Memorithm/scirust@f57d598bf03e5dfb16ec6423e4e43105a77540d3
+Memorithm/scirust@0e2eaccac631b689f97c242c47bad11d433847d9
 ```
 
 The first bridge uses:
