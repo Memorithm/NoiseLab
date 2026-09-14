@@ -107,10 +107,8 @@ mod tests {
         ];
         for (full_value, full) in values {
             for (smoke_value, smoke) in values {
-                let actual = ReportMode::from_flags(
-                    full_value.map(OsStr::new),
-                    smoke_value.map(OsStr::new),
-                );
+                let actual =
+                    ReportMode::from_flags(full_value.map(OsStr::new), smoke_value.map(OsStr::new));
                 let expected = if full && smoke {
                     Err(ReportModeError::ConflictingFlags)
                 } else if full {
@@ -141,7 +139,12 @@ mod tests {
 
     #[test]
     fn invalid_environment_keys_fail_before_reading_the_environment() {
-        let cases = [("", "SMOKE"), ("A=B", "SMOKE"), ("FULL", "A\0B"), ("A", "A")];
+        let cases = [
+            ("", "SMOKE"),
+            ("A=B", "SMOKE"),
+            ("FULL", "A\0B"),
+            ("A", "A"),
+        ];
         for (full, smoke) in cases {
             assert_eq!(
                 ReportMode::from_environment(full, smoke),

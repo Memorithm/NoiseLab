@@ -35,8 +35,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("# report_schema\t1");
     println!("# report_kind\tU2");
     println!("# mode\t{:?}", result.mode);
-    println!("# scientific_claim_permitted\t{}", result.scientific_claim_permitted);
-    println!("# surrogates_per_null\t{}", config.mode.surrogates_per_null());
+    println!(
+        "# scientific_claim_permitted\t{}",
+        result.scientific_claim_permitted
+    );
+    println!(
+        "# surrogates_per_null\t{}",
+        config.mode.surrogates_per_null()
+    );
     println!("# data_seed\t{}", config.data_seed);
     println!("# surrogate_seed_root\t{}", config.surrogate_seed_root);
     println!(

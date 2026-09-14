@@ -17,10 +17,8 @@ use noiselab::{
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mode = ReportMode::from_environment(
-        "NOISELAB_FHN_HORIZON_FULL",
-        "NOISELAB_FHN_HORIZON_SMOKE",
-    )?;
+    let mode =
+        ReportMode::from_environment("NOISELAB_FHN_HORIZON_FULL", "NOISELAB_FHN_HORIZON_SMOKE")?;
     let config = if mode.is_scientific() {
         FhnHorizonStage0Config::scientific()
     } else {
@@ -44,7 +42,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("# report_schema\t1");
     println!("# report_kind\tFHN_HORIZON_STAGE0");
     println!("# mode\t{:?}", result.mode);
-    println!("# scientific_claim_permitted\t{}", result.scientific_claim_permitted);
+    println!(
+        "# scientific_claim_permitted\t{}",
+        result.scientific_claim_permitted
+    );
     println!("# summary\t{}", format_summary(&result.summary));
     println!("# burn_in_steps\t{}", config.mode.burn_in_steps());
     println!("steps\tdecision\tnoise_amplitude\tseed\tobserved_spikes\trequired_spikes\tdetail");
