@@ -245,7 +245,9 @@ fn validate_panel_config(config: &StageU2PanelConfig) -> Result<(), StageU2Panel
         return Err(StageU2PanelError::PreregistrationDrift("data_seed"));
     }
     if config.surrogate_seed_root != U2_SURROGATE_SEED_ROOT {
-        return Err(StageU2PanelError::PreregistrationDrift("surrogate_seed_root"));
+        return Err(StageU2PanelError::PreregistrationDrift(
+            "surrogate_seed_root",
+        ));
     }
     if config.mode == StageU2PanelMode::NonScientificSmoke
         && config.mode.surrogates_per_null() != U2_SMOKE_SURROGATES_PER_NULL
@@ -304,7 +306,10 @@ mod tests {
 
     #[test]
     fn finite_but_retuned_alpha_is_rejected_before_execution() {
-        for mode in [StageU2PanelMode::Scientific, StageU2PanelMode::NonScientificSmoke] {
+        for mode in [
+            StageU2PanelMode::Scientific,
+            StageU2PanelMode::NonScientificSmoke,
+        ] {
             for alpha in [0.01, 0.1, 1.0, f64::from_bits(0.05_f64.to_bits() + 1)] {
                 let mut config = StageU2PanelConfig::scientific();
                 config.mode = mode;
@@ -319,7 +324,10 @@ mod tests {
 
     #[test]
     fn changed_missing_reordered_or_duplicated_scales_are_rejected() {
-        for mode in [StageU2PanelMode::Scientific, StageU2PanelMode::NonScientificSmoke] {
+        for mode in [
+            StageU2PanelMode::Scientific,
+            StageU2PanelMode::NonScientificSmoke,
+        ] {
             for scales in [
                 vec![],
                 vec![1, 2, 4, 8],
@@ -340,7 +348,10 @@ mod tests {
 
     #[test]
     fn seed_search_cannot_masquerade_as_the_frozen_panel() {
-        for mode in [StageU2PanelMode::Scientific, StageU2PanelMode::NonScientificSmoke] {
+        for mode in [
+            StageU2PanelMode::Scientific,
+            StageU2PanelMode::NonScientificSmoke,
+        ] {
             let mut config = StageU2PanelConfig::scientific();
             config.mode = mode;
             config.data_seed ^= 1;
@@ -352,7 +363,9 @@ mod tests {
             config.surrogate_seed_root ^= 1;
             assert_eq!(
                 run_stage_u2_panel(&config),
-                Err(StageU2PanelError::PreregistrationDrift("surrogate_seed_root"))
+                Err(StageU2PanelError::PreregistrationDrift(
+                    "surrogate_seed_root"
+                ))
             );
         }
     }
