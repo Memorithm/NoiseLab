@@ -19,7 +19,10 @@ use std::path::PathBuf;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mode = ReportMode::from_environment("NOISELAB_U2_FULL", "NOISELAB_U2_SMOKE")?;
     let capture_dir = std::env::var_os("NOISELAB_U2_CAPTURE_DIR").map(PathBuf::from);
-    if capture_dir.as_ref().is_some_and(|path| path.as_os_str().is_empty()) {
+    if capture_dir
+        .as_ref()
+        .is_some_and(|path| path.as_os_str().is_empty())
+    {
         return Err("NOISELAB_U2_CAPTURE_DIR must be nonempty when set".into());
     }
     let config = if mode.is_scientific() {
