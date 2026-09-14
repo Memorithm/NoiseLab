@@ -6,12 +6,22 @@
 //!
 //! Smoke output is not scientific evidence and must not be recorded as U2
 //! results. The full-load selector does not itself validate a scientific claim.
+//! Set `NOISELAB_U2_CAPTURE_DIR` to a new directory to persist the exact inputs.
+
+#[path = "support/u2_capture.rs"]
+mod u2_capture;
 
 use noiselab::report_mode::ReportMode;
-use noiselab::{run_stage_u2_panel, StageU2PanelConfig, StageU2PanelMode};
+use noiselab::universality_u2_panel::run_stage_u2_panel_with_capture;
+use noiselab::{StageU2PanelConfig, StageU2PanelMode};
+use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mode = ReportMode::from_environment("NOISELAB_U2_FULL", "NOISELAB_U2_SMOKE")?;
+    let capture_dir = std::env::var_os("NOISELAB_U2_CAPTURE_DIR").map(PathBuf::from);
+    if capture_dir.as_ref().is_some_and(|path| path.as_os_str().is_empty()) {
+        return Err("NOISELAB_U2_CAPTURE_DIR must be nonempty when set".into());
+    }
     let config = if mode.is_scientific() {
         StageU2PanelConfig::scientific()
     } else {
@@ -31,7 +41,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let result = run_stage_u2_panel(&config)?;
+    let result = run_stage_u2_panel_with_capture(&config, |residuals, jobs| {
+        if let Some(path) = &capture_dir {
+            u2_capture::capture_inputs(path, &config, residuals, jobs)
+                .map_err(|error| error.to_string())?;
+        }
+        Ok(())
+    })?;
     println!("# report_schema\t1");
     println!("# report_kind\tU2");
     println!("# mode\t{:?}", result.mode);
