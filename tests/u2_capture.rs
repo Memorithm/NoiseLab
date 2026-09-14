@@ -62,16 +62,24 @@ fn invalid_config_never_reaches_capture() {
     let result = run_stage_u2_panel_with_capture(&config, |_, _| {
         panic!("capture must not run before successful validation")
     });
-    assert!(matches!(result, Err(StageU2PanelError::PreregistrationDrift(_))));
+    assert!(matches!(
+        result,
+        Err(StageU2PanelError::PreregistrationDrift(_))
+    ));
 }
 
 #[test]
 fn failed_sink_stops_before_analysis() {
-    let result = run_stage_u2_panel_with_capture(
-        &StageU2PanelConfig::non_scientific_smoke(),
-        |_, _| Err("simulated full disk".to_string()),
+    let result =
+        run_stage_u2_panel_with_capture(&StageU2PanelConfig::non_scientific_smoke(), |_, _| {
+            Err("simulated full disk".to_string())
+        });
+    assert_eq!(
+        result,
+        Err(StageU2PanelError::Capture(
+            "simulated full disk".to_string()
+        ))
     );
-    assert_eq!(result, Err(StageU2PanelError::Capture("simulated full disk".to_string())));
 }
 
 #[test]
@@ -83,10 +91,16 @@ fn captured_arrays_and_jobs_reproduce_the_actual_pair_analysis() {
         assert!(saved.is_none());
         saved = Some(((*residuals).clone(), jobs.to_vec()));
         Ok(())
-    }).unwrap();
+    })
+    .unwrap();
     let (residuals, jobs) = saved.unwrap();
-    assert_eq!(result.residual_provenance,
-        residuals.iter().map(|series| series.provenance.clone()).collect::<Vec<_>>());
+    assert_eq!(
+        result.residual_provenance,
+        residuals
+            .iter()
+            .map(|series| series.provenance.clone())
+            .collect::<Vec<_>>()
+    );
     for original in &result.pairs {
         let replay = analyze_u2_pair(StageU2PairRequest {
             pair_index: original.pair_index,
@@ -97,11 +111,21 @@ fn captured_arrays_and_jobs_reproduce_the_actual_pair_analysis() {
             alpha: config.alpha,
             jobs: &jobs,
             retain_protocol_failures: true,
-        }).unwrap();
+        })
+        .unwrap();
         // Compare bits explicitly: failure rows deliberately contain NaNs.
-        assert_eq!(original.convergence_score.to_bits(), replay.convergence_score.to_bits());
-        assert_eq!(original.fine_scale_distance.to_bits(), replay.fine_scale_distance.to_bits());
-        assert_eq!(original.terminal_scale_distance.to_bits(), replay.terminal_scale_distance.to_bits());
+        assert_eq!(
+            original.convergence_score.to_bits(),
+            replay.convergence_score.to_bits()
+        );
+        assert_eq!(
+            original.fine_scale_distance.to_bits(),
+            replay.fine_scale_distance.to_bits()
+        );
+        assert_eq!(
+            original.terminal_scale_distance.to_bits(),
+            replay.terminal_scale_distance.to_bits()
+        );
         assert_eq!(original.p_shuffle, replay.p_shuffle);
         assert_eq!(original.p_phase, replay.p_phase);
         assert_eq!(original.decision, replay.decision);
@@ -114,15 +138,31 @@ fn snapshot_preserves_bits_including_signed_zero_and_subnormals() {
     let directory = TemporaryDirectory::new();
     let path = directory.0.join("inputs");
     let residuals = fixtures();
-    u2_capture::capture_inputs(&path, &StageU2PanelConfig::non_scientific_smoke(), &residuals, &[]).unwrap();
+    u2_capture::capture_inputs(
+        &path,
+        &StageU2PanelConfig::non_scientific_smoke(),
+        &residuals,
+        &[],
+    )
+    .unwrap();
     for series in &residuals {
         let bytes = fs::read(path.join(format!("{:?}.f64le", series.family))).unwrap();
-        let expected = series.residual.iter().flat_map(|value| value.to_bits().to_le_bytes()).collect::<Vec<_>>();
+        let expected = series
+            .residual
+            .iter()
+            .flat_map(|value| value.to_bits().to_le_bytes())
+            .collect::<Vec<_>>();
         assert_eq!(bytes, expected);
     }
     assert!(path.join("INPUTS_COMPLETE").is_file());
     // These fixtures are too short for the descriptor; rejection is retained.
-    assert_eq!(fs::read_to_string(path.join("descriptor_errors.tsv")).unwrap().lines().count(), 5);
+    assert_eq!(
+        fs::read_to_string(path.join("descriptor_errors.tsv"))
+            .unwrap()
+            .lines()
+            .count(),
+        5
+    );
 }
 
 #[test]
@@ -131,9 +171,18 @@ fn existing_snapshot_is_never_overwritten() {
     let path = directory.0.join("inputs");
     fs::create_dir(&path).unwrap();
     fs::write(path.join("sentinel"), "preserve").unwrap();
-    let error = u2_capture::capture_inputs(&path, &StageU2PanelConfig::non_scientific_smoke(), &fixtures(), &[]).unwrap_err();
+    let error = u2_capture::capture_inputs(
+        &path,
+        &StageU2PanelConfig::non_scientific_smoke(),
+        &fixtures(),
+        &[],
+    )
+    .unwrap_err();
     assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
-    assert_eq!(fs::read_to_string(path.join("sentinel")).unwrap(), "preserve");
+    assert_eq!(
+        fs::read_to_string(path.join("sentinel")).unwrap(),
+        "preserve"
+    );
     assert!(!path.join("INPUTS_COMPLETE").exists());
 }
 
@@ -148,7 +197,13 @@ fn invalid_inputs_are_rejected_before_creating_a_directory() {
             1 => residuals[0].provenance.samples += 1,
             _ => residuals[0].family = U2_FROZEN_SOURCES[1],
         }
-        assert!(u2_capture::capture_inputs(&path, &StageU2PanelConfig::non_scientific_smoke(), &residuals, &[]).is_err());
+        assert!(u2_capture::capture_inputs(
+            &path,
+            &StageU2PanelConfig::non_scientific_smoke(),
+            &residuals,
+            &[]
+        )
+        .is_err());
         assert!(!path.exists());
     }
 }
