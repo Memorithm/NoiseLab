@@ -3,8 +3,8 @@
 //! Execution order is fixed:
 //!
 //! 1. [`U2Readiness::preregistered().validate()`] **before** any pair outcome;
-//! 2. generate the four frozen residual series;
-//! 3. materialize the surrogate-job manifest from [`U2ExecutionPlan`];
+//! 2. validate the actual panel configuration against the frozen contract;
+//! 3. generate the four frozen residual series and materialize the manifest;
 //! 4. analyze all six unordered pairs under both null families;
 //! 5. emit the complete matrix, retaining protocol failures.
 //!
@@ -30,7 +30,10 @@ pub const U2_SMOKE_SURROGATES_PER_NULL: usize = 19;
 /// Science seed root for surrogate-job derivation (distinct from U1).
 pub const U2_SURROGATE_SEED_ROOT: u64 = 0x5532_554e_4956_324c;
 
-/// Whether this panel invocation is allowed to claim scientific U2 evidence.
+/// Whether this panel invocation uses the preregistered scientific workload.
+///
+/// A scientific workload is not by itself evidence of universality. The complete
+/// matrix, including failures, still needs provenance and independent review.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StageU2PanelMode {
     /// Preregistered scientific load: ≥ 199 surrogates per null per pair.
@@ -55,6 +58,11 @@ impl StageU2PanelMode {
 }
 
 /// Configuration frozen before inspecting Stage U2 outcomes.
+///
+/// Fields remain public for compatibility, but the canonical panel rejects
+/// changes to scales, alpha or the implementation's recorded seed roots before
+/// generating any source. Custom experiments need a separately declared protocol
+/// and must not be labeled as executions of this frozen panel.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StageU2PanelConfig {
     pub mode: StageU2PanelMode,
@@ -100,6 +108,7 @@ impl StageU2PanelConfig {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StageU2PanelResult {
     pub mode: StageU2PanelMode,
+    /// The frozen scientific workload was selected, not a positive-result gate.
     pub scientific_claim_permitted: bool,
     pub residual_provenance: Vec<U2ResidualProvenance>,
     pub pairs: Vec<StageU2PairAnalysis>,
@@ -112,6 +121,8 @@ pub enum StageU2PanelError {
     Analysis(StageU2AnalysisError),
     InvalidAlpha(f64),
     InvalidSmokeSurrogateCount(usize),
+    /// The named field differs from the existing frozen panel configuration.
+    PreregistrationDrift(&'static str),
 }
 
 impl Display for StageU2PanelError {
@@ -127,6 +138,9 @@ impl Display for StageU2PanelError {
                 f,
                 "non-scientific smoke requires exactly {U2_SMOKE_SURROGATES_PER_NULL} surrogates, got {count}"
             ),
+            Self::PreregistrationDrift(field) => {
+                write!(f, "U2 configuration differs from the frozen protocol: {field}")
+            }
         }
     }
 }
@@ -153,8 +167,8 @@ impl From<StageU2AnalysisError> for StageU2PanelError {
 
 /// Execute the Stage U2 panel.
 ///
-/// Readiness is validated before residuals are scored. Smoke runs never flip
-/// `scientific_claim_permitted` to true.
+/// Readiness and the actual configuration are validated before generating any
+/// residuals. Smoke runs never flip `scientific_claim_permitted` to true.
 pub fn run_stage_u2_panel(
     config: &StageU2PanelConfig,
 ) -> Result<StageU2PanelResult, StageU2PanelError> {
@@ -218,6 +232,23 @@ fn validate_panel_config(config: &StageU2PanelConfig) -> Result<(), StageU2Panel
     if !config.alpha.is_finite() || config.alpha <= 0.0 || config.alpha > 1.0 {
         return Err(StageU2PanelError::InvalidAlpha(config.alpha));
     }
+    // Validate supplied values, not just a newly constructed readiness object.
+    // These are the original protocol values and original implementation seeds;
+    // no outcome is consulted and neither scientific nor smoke defaults change.
+    if config.scales != [1, 2, 4, 8, 16] {
+        return Err(StageU2PanelError::PreregistrationDrift("scales"));
+    }
+    if config.alpha.to_bits() != 0.05_f64.to_bits() {
+        return Err(StageU2PanelError::PreregistrationDrift("alpha"));
+    }
+    if config.data_seed != U2_DATA_SEED_ROOT {
+        return Err(StageU2PanelError::PreregistrationDrift("data_seed"));
+    }
+    if config.surrogate_seed_root != U2_SURROGATE_SEED_ROOT {
+        return Err(StageU2PanelError::PreregistrationDrift(
+            "surrogate_seed_root",
+        ));
+    }
     if config.mode == StageU2PanelMode::NonScientificSmoke
         && config.mode.surrogates_per_null() != U2_SMOKE_SURROGATES_PER_NULL
     {
@@ -252,16 +283,103 @@ mod tests {
     }
 
     #[test]
-    fn readiness_failure_prevents_pair_outcomes() {
-        // Indirectly: scientific constructor validates readiness first. A
-        // structurally invalid alpha fails before analysis completes; more
-        // importantly, a successful smoke run always went through readiness.
+    fn invalid_alpha_prevents_pair_outcomes() {
         let mut config = StageU2PanelConfig::non_scientific_smoke();
         config.alpha = 0.0;
         assert!(matches!(
             run_stage_u2_panel(&config),
             Err(StageU2PanelError::InvalidAlpha(_))
         ));
+    }
+
+    #[test]
+    fn canonical_modes_validate_without_generating_outcomes() {
+        for config in [
+            StageU2PanelConfig::scientific(),
+            StageU2PanelConfig::non_scientific_smoke(),
+        ] {
+            assert_eq!(validate_panel_config(&config), Ok(()));
+            assert_eq!(config.scales, [1, 2, 4, 8, 16]);
+            assert_eq!(config.alpha.to_bits(), 0.05_f64.to_bits());
+        }
+    }
+
+    #[test]
+    fn finite_but_retuned_alpha_is_rejected_before_execution() {
+        for mode in [
+            StageU2PanelMode::Scientific,
+            StageU2PanelMode::NonScientificSmoke,
+        ] {
+            for alpha in [0.01, 0.1, 1.0, f64::from_bits(0.05_f64.to_bits() + 1)] {
+                let mut config = StageU2PanelConfig::scientific();
+                config.mode = mode;
+                config.alpha = alpha;
+                assert_eq!(
+                    run_stage_u2_panel(&config),
+                    Err(StageU2PanelError::PreregistrationDrift("alpha"))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn changed_missing_reordered_or_duplicated_scales_are_rejected() {
+        for mode in [
+            StageU2PanelMode::Scientific,
+            StageU2PanelMode::NonScientificSmoke,
+        ] {
+            for scales in [
+                vec![],
+                vec![1, 2, 4, 8],
+                vec![1, 2, 4, 8, 32],
+                vec![1, 4, 2, 8, 16],
+                vec![1, 2, 4, 8, 16, 16],
+            ] {
+                let mut config = StageU2PanelConfig::scientific();
+                config.mode = mode;
+                config.scales = scales;
+                assert_eq!(
+                    run_stage_u2_panel(&config),
+                    Err(StageU2PanelError::PreregistrationDrift("scales"))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn seed_search_cannot_masquerade_as_the_frozen_panel() {
+        for mode in [
+            StageU2PanelMode::Scientific,
+            StageU2PanelMode::NonScientificSmoke,
+        ] {
+            let mut config = StageU2PanelConfig::scientific();
+            config.mode = mode;
+            config.data_seed ^= 1;
+            assert_eq!(
+                run_stage_u2_panel(&config),
+                Err(StageU2PanelError::PreregistrationDrift("data_seed"))
+            );
+            config.data_seed = U2_DATA_SEED_ROOT;
+            config.surrogate_seed_root ^= 1;
+            assert_eq!(
+                run_stage_u2_panel(&config),
+                Err(StageU2PanelError::PreregistrationDrift(
+                    "surrogate_seed_root"
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn nonfinite_or_out_of_range_alpha_stays_invalid() {
+        for alpha in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -0.1, 0.0, 1.1] {
+            let mut config = StageU2PanelConfig::scientific();
+            config.alpha = alpha;
+            assert!(matches!(
+                run_stage_u2_panel(&config),
+                Err(StageU2PanelError::InvalidAlpha(_))
+            ));
+        }
     }
 
     #[test]
