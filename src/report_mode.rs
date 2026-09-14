@@ -126,7 +126,7 @@ mod tests {
     }
 
     #[test]
-    fn_invalid_flags_never_silently_select_a_workload() {
+    fn invalid_flags_never_silently_select_a_workload() {
         for value in ["", "yes", "2", " true", "false ", "\n1"] {
             assert_eq!(
                 ReportMode::from_flags(Some(OsStr::new(value)), None),
@@ -141,7 +141,8 @@ mod tests {
 
     #[test]
     fn invalid_environment_keys_fail_before_reading_the_environment() {
-        for (full, smoke) in [("", "SMOKE"), ("A=B", "SMOKE"), ("FULL", "A\0B"), ("A", "A")] {
+        let cases = [("", "SMOKE"), ("A=B", "SMOKE"), ("FULL", "A\0B"), ("A", "A")];
+        for (full, smoke) in cases {
             assert_eq!(
                 ReportMode::from_environment(full, smoke),
                 Err(ReportModeError::InvalidEnvironmentKeys)
