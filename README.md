@@ -34,6 +34,27 @@ A central research line is **resonant operating-point discovery**. Given a syste
 
 subject to explicit safety/resource constraints and comparison against a no-perturbation control. There is no assumption that a universal "perfect moment" exists.
 
+## Executable research reports
+
+The U2 universality panel and FHN observation-horizon panel have executable
+reporters. They default to **non-scientific smoke**, reject conflicting FULL/SMOKE
+flags and emit explicit workload metadata before their TSV tables.
+
+The `Research report smoke contracts` workflow builds both reporters at an exact
+source revision, checks invalid flag rejection, runs each smoke workload twice,
+requires identical reports and retains diagnostics plus the resolved dependency
+graph for 14 days. This checks execution and report contracts, not scientific
+universality or FHN robustness. See [report automation](docs/REPORT_AUTOMATION.md).
+
+```bash
+cargo build --examples
+python3 scripts/check_smoke_reports.py --output-dir /tmp/noiselab-smoke-new-run
+```
+
+Use a new output directory for each run. Existing output files are not overwritten.
+Full scientific loads remain subject to their frozen protocols and separate
+result review; smoke artifacts must not be promoted to scientific evidence.
+
 ## SciRust foundation
 
 NoiseLab intentionally reuses pinned SciRust primitives instead of creating competing implementations.
