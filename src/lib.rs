@@ -20,6 +20,7 @@ pub mod langevin;
 pub mod laser_calibration;
 pub mod preregistered;
 pub mod protocol_provenance;
+pub mod report_mode;
 pub mod resonance;
 pub mod scirust_bridge;
 pub mod spectral_null;
