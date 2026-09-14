@@ -23,7 +23,10 @@ pub fn capture_inputs(
             || series.residual.len() != series.provenance.samples
             || series.residual.iter().any(|value| !value.is_finite())
         {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid input snapshot"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "invalid input snapshot",
+            ));
         }
     }
     // Never reuse an old artifact directory or overwrite a previous run.
@@ -37,11 +40,25 @@ pub fn capture_inputs(
     writeln!(metadata, "scales\t1,2,4,8,16")?;
     writeln!(metadata, "alpha_bits\t{:016x}", config.alpha.to_bits())?;
     writeln!(metadata, "data_seed_root\t{}", config.data_seed)?;
-    writeln!(metadata, "surrogate_seed_root\t{}", config.surrogate_seed_root)?;
-    writeln!(metadata, "surrogates_per_null\t{}", config.mode.surrogates_per_null())?;
-    writeln!(metadata, "spectral_right_seed_tag\t{SPECTRAL_RIGHT_SEED_TAG}")?;
+    writeln!(
+        metadata,
+        "surrogate_seed_root\t{}",
+        config.surrogate_seed_root
+    )?;
+    writeln!(
+        metadata,
+        "surrogates_per_null\t{}",
+        config.mode.surrogates_per_null()
+    )?;
+    writeln!(
+        metadata,
+        "spectral_right_seed_tag\t{SPECTRAL_RIGHT_SEED_TAG}"
+    )?;
     writeln!(metadata, "shuffle_rule\tone_rng_per_job_left_then_right")?;
-    writeln!(metadata, "controls\tjob_manifest_not_surrogate_realizations")?;
+    writeln!(
+        metadata,
+        "controls\tjob_manifest_not_surrogate_realizations"
+    )?;
     finish(metadata)?;
 
     let mut sources = new_file(destination, "sources.tsv")?;
@@ -58,20 +75,36 @@ pub fn capture_inputs(
         }
         finish(values)?;
         let provenance = &series.provenance;
-        writeln!(sources, "{:?}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
-            series.family, name, provenance.samples, provenance.burn_in_samples,
-            provenance.data_seed, provenance.scirust_revision,
-            clean(provenance.extraction_rule), clean(provenance.parameter_summary))?;
+        writeln!(
+            sources,
+            "{:?}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            series.family,
+            name,
+            provenance.samples,
+            provenance.burn_in_samples,
+            provenance.data_seed,
+            provenance.scirust_revision,
+            clean(provenance.extraction_rule),
+            clean(provenance.parameter_summary)
+        )?;
         // A numerical descriptor rejection is preserved, not turned into a
         // successful trace and not used to omit a source or stop the panel.
         match multiscale_trace(&series.residual, &config.scales) {
             Ok(trace) => {
                 for signature in trace.signatures {
-                    writeln!(descriptors, "{:?}\t{}\t{}\t{}\t{:016x}\t{:016x}\t{:016x}\t{:016x}\t{:016x}",
-                        series.family, signature.block_size, signature.coarse_samples,
-                        signature.dropped_samples, signature.variance.to_bits(),
-                        signature.lag1_autocorrelation.to_bits(), signature.excess_kurtosis.to_bits(),
-                        signature.sign_change_rate.to_bits(), trace.variance_scaling_exponent.to_bits())?;
+                    writeln!(
+                        descriptors,
+                        "{:?}\t{}\t{}\t{}\t{:016x}\t{:016x}\t{:016x}\t{:016x}\t{:016x}",
+                        series.family,
+                        signature.block_size,
+                        signature.coarse_samples,
+                        signature.dropped_samples,
+                        signature.variance.to_bits(),
+                        signature.lag1_autocorrelation.to_bits(),
+                        signature.excess_kurtosis.to_bits(),
+                        signature.sign_change_rate.to_bits(),
+                        trace.variance_scaling_exponent.to_bits()
+                    )?;
                 }
             }
             Err(error) => writeln!(errors, "{:?}\t{}", series.family, clean(&error.to_string()))?,
@@ -82,19 +115,37 @@ pub fn capture_inputs(
     finish(errors)?;
 
     let mut manifest = new_file(destination, "surrogate_jobs.tsv")?;
-    writeln!(manifest, "pair_index\tleft\tright\tnull_family\trepetition\tseed")?;
+    writeln!(
+        manifest,
+        "pair_index\tleft\tright\tnull_family\trepetition\tseed"
+    )?;
     for job in jobs {
-        writeln!(manifest, "{}\t{:?}\t{:?}\t{:?}\t{}\t{}", job.pair_index,
-            job.pair.left, job.pair.right, job.null_family, job.repetition, job.seed)?;
+        writeln!(
+            manifest,
+            "{}\t{:?}\t{:?}\t{:?}\t{}\t{}",
+            job.pair_index,
+            job.pair.left,
+            job.pair.right,
+            job.null_family,
+            job.repetition,
+            job.seed
+        )?;
     }
     finish(manifest)?;
     let mut marker = new_file(destination, "INPUTS_COMPLETE")?;
-    writeln!(marker, "input_snapshot_complete=true\nscientific_evidence=false")?;
+    writeln!(
+        marker,
+        "input_snapshot_complete=true\nscientific_evidence=false"
+    )?;
     finish(marker)
 }
 
 fn new_file(directory: &Path, name: &str) -> io::Result<BufWriter<File>> {
-    OpenOptions::new().write(true).create_new(true).open(directory.join(name)).map(BufWriter::new)
+    OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(directory.join(name))
+        .map(BufWriter::new)
 }
 
 fn finish(mut writer: BufWriter<File>) -> io::Result<()> {
