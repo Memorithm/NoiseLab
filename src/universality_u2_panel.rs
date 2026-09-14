@@ -13,7 +13,7 @@
 //! scientific default remains `199` surrogates per null family.
 
 use crate::u2_manifest::materialize_u2_manifest;
-use crate::u2_plan::{U2ExecutionPlan, U2_FROZEN_PAIRS};
+use crate::u2_plan::{U2ExecutionPlan, U2SurrogateJob, U2_FROZEN_PAIRS};
 use crate::u2_readiness::{U2Readiness, U2ReadinessError, U2_MIN_SURROGATES_PER_NULL};
 use crate::u2_sources::{
     generate_u2_residuals, residual_for_family, U2ResidualProvenance, U2ResidualSeries,
@@ -119,6 +119,8 @@ pub enum StageU2PanelError {
     Readiness(U2ReadinessError),
     Source(U2SourceError),
     Analysis(StageU2AnalysisError),
+    /// The input sink failed before any pair analysis was started.
+    Capture(String),
     InvalidAlpha(f64),
     InvalidSmokeSurrogateCount(usize),
     /// The named field differs from the existing frozen panel configuration.
@@ -131,6 +133,7 @@ impl Display for StageU2PanelError {
             Self::Readiness(error) => write!(f, "U2 readiness failed: {error}"),
             Self::Source(error) => write!(f, "U2 source generation failed: {error}"),
             Self::Analysis(error) => write!(f, "U2 pair analysis failed: {error}"),
+            Self::Capture(error) => write!(f, "U2 input capture failed: {error}"),
             Self::InvalidAlpha(alpha) => {
                 write!(f, "alpha must be finite and in (0, 1], got {alpha}")
             }
@@ -172,6 +175,37 @@ impl From<StageU2AnalysisError> for StageU2PanelError {
 pub fn run_stage_u2_panel(
     config: &StageU2PanelConfig,
 ) -> Result<StageU2PanelResult, StageU2PanelError> {
+    run_stage_u2_panel_with_capture(config, |_, _| Ok(()))
+}
+
+/// Capture the exact generated residuals and job manifest before pair analysis.
+///
+/// The sink receives immutable references to the same arrays subsequently used
+/// by both null families. Sources are not regenerated. Readiness/configuration
+/// validation precedes the sink, which is called once after source generation.
+/// An error from the sink stops execution before any pair result is produced.
+/// Capturing inputs does not authorize or validate a scientific claim.
+///
+/// # Examples
+///
+/// ```
+/// use noiselab::universality_u2_panel::{
+///     run_stage_u2_panel_with_capture, StageU2PanelConfig, StageU2PanelError,
+/// };
+/// let mut config = StageU2PanelConfig::non_scientific_smoke();
+/// config.data_seed ^= 1;
+/// let result = run_stage_u2_panel_with_capture(&config, |_, _| {
+///     panic!("invalid configuration must not reach the sink")
+/// });
+/// assert!(matches!(result, Err(StageU2PanelError::PreregistrationDrift(_))));
+/// ```
+pub fn run_stage_u2_panel_with_capture<F>(
+    config: &StageU2PanelConfig,
+    capture: F,
+) -> Result<StageU2PanelResult, StageU2PanelError>
+where
+    F: FnOnce(&[U2ResidualSeries; 4], &[U2SurrogateJob]) -> Result<(), String>,
+{
     // Gate 1 — outcome-blind readiness before any pair outcome exists.
     U2Readiness::preregistered().validate()?;
     validate_panel_config(config)?;
@@ -179,6 +213,7 @@ pub fn run_stage_u2_panel(
     let residuals = generate_u2_residuals(config.data_seed)?;
     let plan = execution_plan(config)?;
     let jobs = materialize_u2_manifest(plan);
+    capture(&residuals, &jobs).map_err(StageU2PanelError::Capture)?;
 
     let mut pairs = Vec::with_capacity(U2_FROZEN_PAIRS.len());
     for (pair_index, pair) in U2_FROZEN_PAIRS.iter().copied().enumerate() {

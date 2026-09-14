@@ -5,8 +5,8 @@ on:
     paths:
       - "src/**"
       - "examples/**"
-      - "scripts/check_smoke_reports.py"
-      - "scripts/test_smoke_reports.py"
+      - "tests/**"
+      - "scripts/*.py"
       - "Cargo.toml"
       - "Cargo.lock"
       - ".github/workflows/research-smoke.yml"
@@ -15,8 +15,8 @@ on:
     paths:
       - "src/**"
       - "examples/**"
-      - "scripts/check_smoke_reports.py"
-      - "scripts/test_smoke_reports.py"
+      - "tests/**"
+      - "scripts/*.py"
       - "Cargo.toml"
       - "Cargo.lock"
       - ".github/workflows/research-smoke.yml"
@@ -55,11 +55,11 @@ jobs:
         with:
           toolchain: 1.89.0
           components: rustfmt, clippy
-      - name: Test report validator on synthetic contract fixtures
+      - name: Test report and integrity validators on synthetic fixtures
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m unittest discover -s scripts -p 'test_smoke_reports.py' -v 2>&1 | tee artifacts/smoke/python-tests.log
+          python3 -m unittest discover -s scripts -p 'test_*.py' -v 2>&1 | tee artifacts/smoke/python-tests.log
       - name: Resolve and retain the actual dependency graph
         shell: bash
         run: |
@@ -74,6 +74,51 @@ jobs:
         run: cargo build --locked --examples
       - name: Check rejected flags and repeat each smoke report twice
         run: python3 scripts/check_smoke_reports.py --bin-dir target/debug/examples --output-dir artifacts/smoke
+      - name: Capture exact U2 smoke inputs twice without overwriting prior data
+        shell: bash
+        run: |
+          set -euo pipefail
+          for run in a b; do
+            NOISELAB_U2_FULL=0 NOISELAB_U2_SMOKE=1 \
+              NOISELAB_U2_CAPTURE_DIR="artifacts/smoke/u2-inputs-$run" \
+              target/debug/examples/fluctuation_u2_report \
+              > "artifacts/smoke/u2-captured-$run.tsv" \
+              2> "artifacts/smoke/u2-captured-$run.stderr"
+            test -s "artifacts/smoke/u2-inputs-$run/INPUTS_COMPLETE"
+            test "$(wc -l < "artifacts/smoke/u2-inputs-$run/sources.tsv")" -eq 5
+            test "$(wc -l < "artifacts/smoke/u2-inputs-$run/surrogate_jobs.tsv")" -eq 229
+            for family in DrivenDampedOscillator SemiconductorLaser BistableLangevin FitzHughNagumo; do
+              test "$(stat -c %s "artifacts/smoke/u2-inputs-$run/$family.f64le")" -eq 65536
+            done
+          done
+          cmp artifacts/smoke/u2-captured-a.tsv artifacts/smoke/u2-captured-b.tsv
+          diff -r artifacts/smoke/u2-inputs-a artifacts/smoke/u2-inputs-b
+          if NOISELAB_U2_FULL=0 NOISELAB_U2_SMOKE=1 \
+            NOISELAB_U2_CAPTURE_DIR=artifacts/smoke/u2-inputs-a \
+            target/debug/examples/fluctuation_u2_report \
+            > artifacts/smoke/reused-capture.stdout 2> artifacts/smoke/reused-capture.stderr; then
+            echo 'An existing capture directory was incorrectly accepted' >&2
+            exit 1
+          fi
+          test ! -s artifacts/smoke/reused-capture.stdout
+          diff -r artifacts/smoke/u2-inputs-a artifacts/smoke/u2-inputs-b
+      - name: Retain protocol sources and executable identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/smoke/source
+          cp --parents Cargo.toml src/u2_*.rs src/universality*.rs src/spectral_null.rs \
+            src/report_mode.rs examples/fluctuation_u2_report.rs examples/support/u2_capture.rs \
+            docs/research/fluctuation-universality-u2-stage0.md \
+            scripts/evidence_bundle.py artifacts/smoke/source/
+          sha256sum target/debug/examples/fluctuation_u2_report \
+            target/debug/examples/fhn_horizon_stage0_report > artifacts/smoke/executables.sha256
+      - name: Seal and verify retained bytes without granting a scientific verdict
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/evidence_bundle.py seal artifacts/smoke
+          python3 scripts/evidence_bundle.py verify artifacts/smoke >> "$GITHUB_STEP_SUMMARY"
       - name: Retain non-scientific reports and diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

@@ -46,6 +46,14 @@ requires identical reports and retains diagnostics plus the resolved dependency
 graph for 14 days. This checks execution and report contracts, not scientific
 universality or FHN robustness. See [report automation](docs/REPORT_AUTOMATION.md).
 
+U2 can additionally retain the exact post-burn-in residual arrays before pair
+analysis through `NOISELAB_U2_CAPTURE_DIR`: lossless binary64 inputs, extraction
+provenance, descriptors and surrogate job identities. The CI repeats and compares
+these snapshots, checks no-overwrite behavior and seals the combined U2/FHN
+artifact directory with a SHA-256 manifest. Integrity is not authentication or a
+scientific verdict; full pre-extraction trajectories and realized surrogate
+arrays are not yet captured. See [input capture and bundles](docs/research/u2-input-capture.md).
+
 ```bash
 cargo build --examples
 python3 scripts/check_smoke_reports.py --output-dir /tmp/noiselab-smoke-new-run
