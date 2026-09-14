@@ -51,16 +51,18 @@ It checks the exact source SHA, builds the two existing report executables, then
 
 1. verifies contradictory and invalid flags fail with no stdout report;
 2. executes each explicit smoke workload twice;
-3. checks the non-scientific metadata, table structure, all six U2 pairs and all
-   three abbreviated FHN horizons;
+3. checks the non-scientific metadata, both U2 seed roots, table structure, all six
+   U2 pairs and all three abbreviated FHN horizons;
 4. requires byte-identical stdout reports within the same execution environment;
 5. writes a machine-readable manifest containing report SHA-256 digests and
    `scientific_evidence=false`.
 
-A scientific negative or a recorded protocol failure is not turned into a test
-failure solely for being negative. Missing rows, false mode labels, malformed
-rows, process failure, timeout or divergent repeats do fail the contract check.
-The validator does not recompute the scientific decision from the data.
+FHN Stage0 rows must name an actual enum variant with consistent amplitude and
+empty unused fields. A scientific negative or a recorded protocol failure is not
+turned into a test failure solely for being negative. Missing rows, false mode
+labels, malformed rows, process failure, timeout or divergent repeats do fail the
+contract check. The validator does not recompute the scientific decision from
+the data.
 
 ```bash
 python3 -m unittest discover -s scripts -p 'test_smoke_reports.py' -v
@@ -87,7 +89,7 @@ files exist. This is temporary CI diagnostic retention, not a permanent archive
 of research results. A future scientific evidence package needs durable raw
 series, descriptors, surrogate details, protocol identity and complete provenance.
 
-The 11 Python tests use explicitly synthetic contract fixtures. The Rust selector
+The Python tests use explicitly synthetic contract fixtures. The Rust selector
 tests do not mutate process environment or execute full workloads. Neither those
 tests nor successful smoke reports constitute a U2 universality or FHN robustness
 result. U0/U1 results, U2 exploratory multiplicity policy, FHN acceptance rules,

@@ -11,6 +11,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import subprocess
 
 REPORTS = (
@@ -21,6 +22,9 @@ SOURCES = ("DrivenDampedOscillator", "SemiconductorLaser", "BistableLangevin", "
 PAIRS = [(left, right) for i, left in enumerate(SOURCES) for right in SOURCES[i + 1:]]
 U2_HEADER = "left right fine_distance terminal_distance convergence p_shuffle p_phase decision protocol_error".split()
 FHN_HEADER = "steps decision noise_amplitude seed observed_spikes required_spikes detail".split()
+U2_SEEDS = {"data_seed": str(0x5532_4e4f_4953_454c),
+            "surrogate_seed_root": str(0x5532_554e_4956_324c)}
+FHN_PAYLOAD = re.compile(r"Stage0\((Accepted|OutsideAcceptance) \{ noise_amplitude: ([^{}]+) \}\)")
 DECISIONS = {
     "NoObservedConvergence", "CompatibleWithMarginalNull",
     "SpectrumExplainedCandidate", "CrossMechanismCandidate",
@@ -59,6 +63,8 @@ def validate_report(text, kind):
 
     if kind == "U2":
         require(metadata.get("surrogates_per_null") == "19", "not the declared U2 smoke load")
+        require(all(metadata.get(key) == value for key, value in U2_SEEDS.items()),
+                "missing or altered U2 seed metadata")
         require([(row[0], row[1]) for row in rows] == PAIRS, "missing, reordered or duplicated U2 pair")
         for row in rows:
             if row[8]:
@@ -74,13 +80,21 @@ def validate_report(text, kind):
         require(metadata.get("burn_in_steps") == "500", "wrong smoke burn-in")
         require([row[0] for row in rows] == ["2000", "4000", "8000"], "wrong FHN smoke horizons")
         for row in rows:
-            require(row[1] == "InsufficientSpikes" or row[1] == "ProtocolFailure"
-                    or row[1].startswith("Stage0("), "unknown FHN decision")
             if row[1] == "ProtocolFailure":
-                require(bool(row[6]), "protocol failure needs a recorded reason")
+                require(not any(row[2:6]) and bool(row[6]), "invalid protocol-failure payload")
             elif row[1] == "InsufficientSpikes":
+                require(not row[6], "unused spike detail must be empty")
                 require(math.isfinite(float(row[2])) and float(row[2]) >= 0, "invalid noise amplitude")
                 require(int(row[3]) >= 0 and 0 <= int(row[4]) < int(row[5]), "invalid spike counts")
+            elif row[1] in ("Stage0(ProtocolMismatch)", "Stage0(NoInteriorMinimum)"):
+                require(not any(row[2:]), "payload-free FHN variant has unexpected fields")
+            else:
+                payload = FHN_PAYLOAD.fullmatch(row[1])
+                require(payload is not None, "unknown FHN decision")
+                amplitude = float(payload.group(2))
+                require(math.isfinite(amplitude) and amplitude >= 0, "invalid Stage0 amplitude")
+                require(row[2] == format(amplitude, ".12f"), "inconsistent Stage0 amplitude payload")
+                require(not any(row[3:]), "unused Stage0 columns must be empty")
     return metadata
 
 

@@ -15,6 +15,7 @@ def fixture(kind):
     metadata = f"# report_schema\t1\n# report_kind\t{kind}\n# mode\tNonScientificSmoke\n# scientific_claim_permitted\tfalse\n"
     if kind == "U2":
         metadata += "# surrogates_per_null\t19\n"
+        metadata += "".join(f"# {key}\t{value}\n" for key, value in checks.U2_SEEDS.items())
         rows = [list(pair) + ["1", "2", "-1", "0.9", "0.8", "NoObservedConvergence", ""]
                 for pair in checks.PAIRS]
         header = checks.U2_HEADER
@@ -91,6 +92,53 @@ class ContractTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 checks.invoke(Path("/example"), {}, output, "same", 1)
             self.assertEqual((output / "same.tsv").read_text(), "preserve")
+
+    def test_missing_or_changed_seed_metadata_is_rejected(self):
+        for key, value in checks.U2_SEEDS.items():
+            line = f"# {key}\t{value}\n"
+            for replacement in ("", f"# {key}\t0\n", f"# {key}\t{int(value) + 1}\n"):
+                with self.subTest(key=key, replacement=replacement), self.assertRaises(checks.ContractError):
+                    checks.validate_report(fixture("U2").replace(line, replacement), "U2")
+
+    def fhn_variant(self, variant, amplitude="", seed="", observed="", required="", detail=""):
+        lines = fixture("FHN_HORIZON_STAGE0").splitlines()
+        lines[-3:] = ["\t".join([steps, variant, amplitude, seed, observed, required, detail])
+                      for steps in ("2000", "4000", "8000")]
+        return "\n".join(lines) + "\n"
+
+    def test_all_actual_fhn_stage0_variants_are_accepted(self):
+        cases = [("Stage0(ProtocolMismatch)", ""), ("Stage0(NoInteriorMinimum)", ""),
+                 ("Stage0(Accepted { noise_amplitude: 0.075 })", "0.075000000000"),
+                 ("Stage0(OutsideAcceptance { noise_amplitude: 0.3 })", "0.300000000000")]
+        for variant, amplitude in cases:
+            checks.validate_report(self.fhn_variant(variant, amplitude), "FHN_HORIZON_STAGE0")
+
+    def test_unknown_or_inconsistent_fhn_stage0_payloads_are_rejected(self):
+        cases = [("Stage0(Garbage)", ""), ("Stage0(NoInteriorMinimum)trailing", ""),
+                 ("Stage0(Accepted)", "0.075000000000"),
+                 ("Stage0(Accepted { noise_amplitude: NaN })", "NaN"),
+                 ("Stage0(Accepted { noise_amplitude: inf })", "inf"),
+                 ("Stage0(Accepted { noise_amplitude: -1.0 })", "-1.000000000000"),
+                 ("Stage0(Accepted { noise_amplitude: 0.075 })", "0.080000000000"),
+                 ("Stage0(NoInteriorMinimum)", "0.075000000000")]
+        for variant, amplitude in cases:
+            with self.subTest(variant=variant), self.assertRaises(checks.ContractError):
+                checks.validate_report(self.fhn_variant(variant, amplitude), "FHN_HORIZON_STAGE0")
+
+    def test_unused_fhn_columns_are_rejected(self):
+        for variant, amplitude in [("Stage0(ProtocolMismatch)", ""),
+                                   ("Stage0(Accepted { noise_amplitude: 0.075 })", "0.075000000000")]:
+            for extras in ({"seed": "1"}, {"observed": "1"}, {"required": "5"}, {"detail": "unexpected"}):
+                with self.subTest(extras=extras), self.assertRaises(checks.ContractError):
+                    checks.validate_report(self.fhn_variant(variant, amplitude, **extras), "FHN_HORIZON_STAGE0")
+
+    def test_failure_payloads_are_retained_but_must_be_consistent(self):
+        checks.validate_report(self.fhn_variant("ProtocolFailure", detail="retained reason"), "FHN_HORIZON_STAGE0")
+        for text in (self.fhn_variant("ProtocolFailure"),
+                     self.fhn_variant("ProtocolFailure", seed="1", detail="reason"),
+                     self.fhn_variant("InsufficientSpikes", "0.02", "11", "0", "5", "unexpected")):
+            with self.assertRaises(checks.ContractError):
+                checks.validate_report(text, "FHN_HORIZON_STAGE0")
 
 
 if __name__ == "__main__":
