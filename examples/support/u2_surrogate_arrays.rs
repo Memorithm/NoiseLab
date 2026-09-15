@@ -5,9 +5,7 @@
 //! scientific hypothesis is supported.
 
 use noiselab::u2_manifest::materialize_u2_manifest;
-use noiselab::u2_plan::{
-    U2ExecutionPlan, U2SurrogateJob, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES,
-};
+use noiselab::u2_plan::{U2ExecutionPlan, U2SurrogateJob, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES};
 use noiselab::{
     materialize_u2_surrogate_pair, StageU2PanelConfig, U2ResidualSeries, U2SourceFamily,
 };
