@@ -149,10 +149,10 @@ pub fn capture_inputs(
 /// Persist every realized surrogate convergence score after panel analysis.
 ///
 /// Scores are emitted as exact IEEE-754 bit patterns and remain bound to the
-/// preregistered job identity. This export does not regenerate or persist the
-/// surrogate arrays and does not turn a scientific-load execution into a
-/// positive scientific result. A completion marker is created only after the
-/// complete successful-pair score sets have been validated and synced.
+/// preregistered job identity. This function does not generate surrogate arrays;
+/// the completion marker records whether a separately completed array export is
+/// present in the same capture directory. A scientific-load execution still does
+/// not become a positive scientific result by virtue of either artifact set.
 pub fn capture_surrogate_scores(
     destination: &Path,
     config: &StageU2PanelConfig,
@@ -234,11 +234,12 @@ pub fn capture_surrogate_scores(
     }
     finish(scores)?;
 
+    let arrays_persisted = destination.join("SURROGATE_ARRAYS_COMPLETE").is_file();
     let mut marker = new_file(destination, "SURROGATE_SCORES_COMPLETE")?;
     writeln!(marker, "surrogate_score_export_complete=true")?;
     writeln!(marker, "rows={exported}")?;
     writeln!(marker, "scientific_evidence=false")?;
-    writeln!(marker, "surrogate_arrays_persisted=false")?;
+    writeln!(marker, "surrogate_arrays_persisted={arrays_persisted}")?;
     finish(marker)
 }
 
