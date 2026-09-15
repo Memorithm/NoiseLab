@@ -34,8 +34,10 @@ Use a stable, trusted local output directory, not an adversarial shared director
 | `sources.tsv` | Family identity, retained length, burn-in, seed, SciRust revision, extraction rule and model parameter summary |
 | `descriptors.tsv` | Existing multiscale descriptors encoded as exact binary64 bit patterns |
 | `descriptor_errors.tsv` | Numerical descriptor rejections; no failed source is silently removed from this snapshot |
-| `surrogate_jobs.tsv` | Complete stable-order pair/null/repetition/seed manifest |
+| `surrogate_jobs.tsv` | Complete stable-order pair/null/repetition/seed manifest written before pair analysis |
 | `INPUTS_COMPLETE` | All input snapshot files were successfully written; not completion of the experiment |
+| `surrogate_scores.tsv` | Post-analysis convergence score for every successfully realized preregistered surrogate job, encoded as exact binary64 bits and revalidated against the frozen pair/null/repetition/seed identity |
+| `SURROGATE_SCORES_COMPLETE` | All successful-pair score rows passed identity/count/finiteness checks and were synchronized; realized surrogate arrays are still not retained |
 
 The four binary files hold **post-burn-in extracted residuals, before the
 multiscale analysis's normalization/coarse graining**. They are not the full
@@ -43,17 +45,24 @@ pre-burn-in states, pre-extraction trajectories or physical measurements. Each
 canonical series has 8,192 binary64 values (65,536 bytes). Signed zero and
 subnormal values are preserved bit-for-bit.
 
-The controls file holds job identities and seeds, **not the realized surrogate
-arrays or individual surrogate scores**. Reproduction uses the pinned SciRust
-primitive and recorded generator source. The shuffled null initializes one RNG
-per job and shuffles the left series then the right using that stream. The
-spectral null uses `job.seed` for the left series and the recorded XOR tag for
-the right series. Do not substitute one rule for the other.
+`surrogate_jobs.tsv` remains the outcome-blind manifest produced before analysis.
+After panel analysis completes, `surrogate_scores.tsv` binds every retained score
+to the exact preregistered job identity, including the deterministic seed derived
+from the recorded surrogate seed root. The shuffled null initializes one RNG per
+job and shuffles the left series then the right using that stream. The spectral
+null uses `job.seed` for the left series and the recorded XOR tag for the right
+series. Do not substitute one rule for the other.
+
+The score export does **not** retain the realized surrogate arrays themselves and
+does not turn smoke output, a scientific-load invocation or a completion marker
+into a positive universality result. A malformed, reordered, duplicated,
+mis-seeded or non-finite score set is rejected before the completion marker is
+written. Partial files from a failed export remain diagnostic material only.
 
 The existing TSV report retains its schema and 12-decimal rendering. Its error
-rows remain error rows, not zero-valued successful observations. The snapshot
-and source revision provide a route to replay; they do not increase the displayed
-report's precision retroactively.
+rows remain error rows, not zero-valued successful observations. The snapshot,
+source revision and exact score bits provide a route to replay and audit; they do
+not increase the displayed report's precision retroactively.
 
 ## Non-scientific smoke example
 
@@ -75,8 +84,8 @@ python3 scripts/evidence_bundle.py verify "$bundle"
 ```
 
 The full workload selector remains separately explicit as documented in the
-frozen U2 protocol. It does not turn an input snapshot or a checksum into a
-scientific verdict. No full scientific campaign is run by this PR's CI.
+frozen U2 protocol. It does not turn an input snapshot, score export or checksum
+into a scientific verdict. No full scientific campaign is run by this PR's CI.
 
 ## Byte-integrity sealing
 
@@ -105,28 +114,33 @@ authority, even when used to retain bytes from a separately authorized experimen
 
 The Rust regression suite checks capture ordering, sink errors, bit preservation,
 no overwrite, invalid-input rejection and replay of the actual captured smoke
-arrays/jobs through all six pair analyses. It compares failure NaNs by bits.
+arrays/jobs through all six pair analyses. It compares failure NaNs by bits. The
+score-export regressions additionally reject a tampered preregistered seed and
+require a valid score set to produce the completion marker.
 The Python suite tests integrity, corruption, omitted/extra files and rejection
 paths using explicitly synthetic fixtures.
 
 The existing `Research report smoke contracts` workflow also runs U2 capture
 twice, requires identical reports/snapshots, checks all four byte lengths and
 all 228 smoke job entries, and verifies a repeated destination fails without
-modifying the first snapshot. It retains source/protocol copies, Cargo.lock,
-resolved Cargo metadata, toolchain/host identity, executable hashes, the original
-U2/FHN smoke reports and diagnostics, then seals the whole artifact tree.
-Its checks are about execution and integrity, not a positive universality label.
+modifying the first snapshot. The example now also writes the exact per-surrogate
+score table and its completion marker after analysis. The workflow retains
+source/protocol copies, Cargo.lock, resolved Cargo metadata, toolchain/host
+identity, executable hashes, the original U2/FHN smoke reports and diagnostics,
+then seals the whole artifact tree. Its checks are about execution and integrity,
+not a positive universality label.
 
 The workflow uploads diagnostics even on failure, so not every uploaded artifact
-has a complete snapshot or valid seal. Inspect job completion and verify the
-manifest. GitHub artifact retention is configured to **14 days**, not permanent
-storage: archive a downloaded bundle and its independently recorded digest before
-expiry when long-term retention is needed.
+has a complete snapshot, score export or valid seal. Inspect job completion and
+verify the manifest. GitHub artifact retention is configured to **14 days**, not
+permanent storage: archive a downloaded bundle and its independently recorded
+digest before expiry when long-term retention is needed.
 
 ## Deliberate next boundaries
 
 A complete future scientific dossier still needs its approved full-load run,
-reviewed six-pair outcomes, any source-generation failures, and a durable archive.
-Recording realized surrogate scores/arrays and replay directly from an on-disk
-bundle are separate increments. Do not claim them from this input-capture work.
-U0/U1 results and the exploratory U2 multiplicity policy remain unchanged.
+reviewed six-pair outcomes, any source-generation failures, realized surrogate
+arrays when required for independent byte-level replay, and a durable archive.
+Replay directly from an on-disk bundle remains a separate increment. Do not claim
+those capabilities from this score-retention work. U0/U1 results and the
+exploratory U2 multiplicity policy remain unchanged.
