@@ -53,6 +53,14 @@ job and shuffles the left series then the right using that stream. The spectral
 null uses `job.seed` for the left series and the recorded XOR tag for the right
 series. Do not substitute one rule for the other.
 
+The library now also exposes `materialize_u2_surrogate_pair` as the canonical
+capture/replay primitive for one frozen `U2SurrogateJob`. It rejects unequal
+lengths and non-finite inputs, uses the same shuffled-marginal RNG ordering and
+spectral seed split as the existing analysis path, and is regression-tested by
+recomputing exact convergence-score bits for both null families against the
+current pair-analysis implementation. This is a prerequisite for later byte-level
+surrogate-array retention; it does **not** mean those arrays are persisted yet.
+
 The score export does **not** retain the realized surrogate arrays themselves and
 does not turn smoke output, a scientific-load invocation or a completion marker
 into a positive universality result. A malformed, reordered, duplicated,
@@ -116,7 +124,9 @@ The Rust regression suite checks capture ordering, sink errors, bit preservation
 no overwrite, invalid-input rejection and replay of the actual captured smoke
 arrays/jobs through all six pair analyses. It compares failure NaNs by bits. The
 score-export regressions additionally reject a tampered preregistered seed and
-require a valid score set to produce the completion marker.
+require a valid score set to produce the completion marker. The canonical
+surrogate-realization regressions additionally require deterministic replay and
+bit-exact score agreement with the existing U2 analysis for both null families.
 The Python suite tests integrity, corruption, omitted/extra files and rejection
 paths using explicitly synthetic fixtures.
 
@@ -141,6 +151,8 @@ digest before expiry when long-term retention is needed.
 A complete future scientific dossier still needs its approved full-load run,
 reviewed six-pair outcomes, any source-generation failures, realized surrogate
 arrays when required for independent byte-level replay, and a durable archive.
+The canonical realization primitive now removes one semantics ambiguity from the
+array-persistence step, but persistence itself remains a separate increment.
 Replay directly from an on-disk bundle remains a separate increment. Do not claim
-those capabilities from this score-retention work. U0/U1 results and the
-exploratory U2 multiplicity policy remain unchanged.
+those capabilities from this work. U0/U1 results and the exploratory U2
+multiplicity policy remain unchanged.
