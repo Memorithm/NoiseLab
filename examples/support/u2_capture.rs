@@ -1,11 +1,12 @@
 //! Versioned input snapshots for the U2 report example (not scientific verdicts).
 
-use noiselab::u2_plan::{U2NullFamily, U2SurrogateJob, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES};
+use noiselab::u2_plan::{
+    U2ExecutionPlan, U2NullFamily, U2SurrogateJob, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES,
+};
 use noiselab::{
     multiscale_trace, StageU2PairAnalysis, StageU2PanelConfig, U2ResidualSeries,
     SPECTRAL_RIGHT_SEED_TAG,
 };
-use std::collections::BTreeSet;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
@@ -164,7 +165,14 @@ pub fn capture_surrogate_scores(
     }
 
     let expected_per_null = config.mode.surrogates_per_null();
-    let mut seen = BTreeSet::new();
+    let expected_scores_per_pair = expected_per_null
+        .checked_mul(2)
+        .ok_or(invalid_data("U2 score count overflow"))?;
+    let expected_plan = U2ExecutionPlan {
+        pairs: &U2_FROZEN_PAIRS,
+        surrogates_per_null: expected_per_null,
+        seed_root: config.surrogate_seed_root,
+    };
     let mut scores = new_file(destination, "surrogate_scores.tsv")?;
     writeln!(
         scores,
@@ -186,31 +194,28 @@ pub fn capture_surrogate_scores(
             }
             continue;
         }
+        if pair.surrogate_scores.len() != expected_scores_per_pair {
+            return Err(invalid_data(
+                "successful U2 pair does not contain the complete dual-null score set",
+            ));
+        }
 
-        let mut shuffle_count = 0usize;
-        let mut phase_count = 0usize;
-        for score in &pair.surrogate_scores {
-            let job = score.job;
-            if job.pair_index != pair.pair_index
-                || job.pair != pair.pair
-                || job.repetition >= expected_per_null
-                || !score.convergence_score.is_finite()
-            {
+        for (score_index, score) in pair.surrogate_scores.iter().enumerate() {
+            let (null_family, repetition) = if score_index < expected_per_null {
+                (U2NullFamily::ShuffledMarginal, score_index)
+            } else {
+                (
+                    U2NullFamily::PhaseRandomizedSpectrum,
+                    score_index - expected_per_null,
+                )
+            };
+            let expected_job = expected_plan
+                .surrogate_job(pair.pair_index, null_family, repetition)
+                .ok_or(invalid_data("invalid expected U2 surrogate job"))?;
+            if score.job != expected_job || !score.convergence_score.is_finite() {
                 return Err(invalid_data("invalid U2 surrogate score binding"));
             }
-            let null_tag = match job.null_family {
-                U2NullFamily::ShuffledMarginal => {
-                    shuffle_count += 1;
-                    0u8
-                }
-                U2NullFamily::PhaseRandomizedSpectrum => {
-                    phase_count += 1;
-                    1u8
-                }
-            };
-            if !seen.insert((job.pair_index, null_tag, job.repetition)) {
-                return Err(invalid_data("duplicate U2 surrogate score identity"));
-            }
+            let job = score.job;
             writeln!(
                 scores,
                 "{}\t{:?}\t{:?}\t{:?}\t{}\t{}\t{:016x}",
@@ -224,12 +229,7 @@ pub fn capture_surrogate_scores(
             )?;
             exported = exported
                 .checked_add(1)
-                .ok_or_else(|| invalid_data("U2 score export count overflow"))?;
-        }
-        if shuffle_count != expected_per_null || phase_count != expected_per_null {
-            return Err(invalid_data(
-                "successful U2 pair does not contain the complete dual-null score set",
-            ));
+                .ok_or(invalid_data("U2 score export count overflow"))?;
         }
     }
     finish(scores)?;
