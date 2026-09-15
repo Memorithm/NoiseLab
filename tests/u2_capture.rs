@@ -131,6 +131,26 @@ fn captured_arrays_and_jobs_reproduce_the_actual_pair_analysis() {
         assert_eq!(original.decision, replay.decision);
         assert_eq!(original.protocol_error, replay.protocol_error);
     }
+
+    let directory = TemporaryDirectory::new();
+    let valid_path = directory.0.join("scores-valid");
+    fs::create_dir(&valid_path).unwrap();
+    u2_capture::capture_surrogate_scores(&valid_path, &config, &result.pairs).unwrap();
+    assert!(valid_path.join("surrogate_scores.tsv").is_file());
+    assert!(valid_path.join("SURROGATE_SCORES_COMPLETE").is_file());
+
+    let mut tampered_pairs = result.pairs.clone();
+    let tampered_score = tampered_pairs
+        .iter_mut()
+        .find_map(|pair| pair.surrogate_scores.first_mut())
+        .expect("smoke panel must realize at least one surrogate score");
+    tampered_score.job.seed ^= 1;
+    let tampered_path = directory.0.join("scores-tampered");
+    fs::create_dir(&tampered_path).unwrap();
+    let error =
+        u2_capture::capture_surrogate_scores(&tampered_path, &config, &tampered_pairs).unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+    assert!(!tampered_path.join("SURROGATE_SCORES_COMPLETE").exists());
 }
 
 #[test]

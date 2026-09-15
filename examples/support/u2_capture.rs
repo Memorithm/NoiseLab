@@ -1,7 +1,12 @@
 //! Versioned input snapshots for the U2 report example (not scientific verdicts).
 
-use noiselab::u2_plan::{U2SurrogateJob, U2_FROZEN_SOURCES};
-use noiselab::{multiscale_trace, StageU2PanelConfig, U2ResidualSeries, SPECTRAL_RIGHT_SEED_TAG};
+use noiselab::u2_plan::{
+    U2ExecutionPlan, U2NullFamily, U2SurrogateJob, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES,
+};
+use noiselab::{
+    multiscale_trace, StageU2PairAnalysis, StageU2PanelConfig, U2ResidualSeries,
+    SPECTRAL_RIGHT_SEED_TAG,
+};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
@@ -23,10 +28,7 @@ pub fn capture_inputs(
             || series.residual.len() != series.provenance.samples
             || series.residual.iter().any(|value| !value.is_finite())
         {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "invalid input snapshot",
-            ));
+            return Err(invalid_data("invalid input snapshot"));
         }
     }
     // Never reuse an old artifact directory or overwrite a previous run.
@@ -58,6 +60,10 @@ pub fn capture_inputs(
     writeln!(
         metadata,
         "controls\tjob_manifest_not_surrogate_realizations"
+    )?;
+    writeln!(
+        metadata,
+        "post_analysis_scores\tsurrogate_scores.tsv when panel analysis completes"
     )?;
     finish(metadata)?;
 
@@ -140,6 +146,102 @@ pub fn capture_inputs(
     finish(marker)
 }
 
+/// Persist every realized surrogate convergence score after panel analysis.
+///
+/// Scores are emitted as exact IEEE-754 bit patterns and remain bound to the
+/// preregistered job identity. This export does not regenerate or persist the
+/// surrogate arrays and does not turn a scientific-load execution into a
+/// positive scientific result. A completion marker is created only after the
+/// complete successful-pair score sets have been validated and synced.
+pub fn capture_surrogate_scores(
+    destination: &Path,
+    config: &StageU2PanelConfig,
+    pairs: &[StageU2PairAnalysis],
+) -> io::Result<()> {
+    if pairs.len() != U2_FROZEN_PAIRS.len() {
+        return Err(invalid_data(
+            "U2 score export does not contain all frozen pairs",
+        ));
+    }
+
+    let expected_per_null = config.mode.surrogates_per_null();
+    let expected_scores_per_pair = expected_per_null
+        .checked_mul(2)
+        .ok_or(invalid_data("U2 score count overflow"))?;
+    let expected_plan = U2ExecutionPlan {
+        pairs: &U2_FROZEN_PAIRS,
+        surrogates_per_null: expected_per_null,
+        seed_root: config.surrogate_seed_root,
+    };
+    let mut scores = new_file(destination, "surrogate_scores.tsv")?;
+    writeln!(
+        scores,
+        "pair_index\tleft\tright\tnull_family\trepetition\tseed\tconvergence_score_bits"
+    )?;
+
+    let mut exported = 0usize;
+    for (expected_pair_index, pair) in pairs.iter().enumerate() {
+        if pair.pair_index != expected_pair_index
+            || pair.pair != U2_FROZEN_PAIRS[expected_pair_index]
+        {
+            return Err(invalid_data("U2 pair result identity mismatch"));
+        }
+        if pair.protocol_error.is_some() {
+            if !pair.surrogate_scores.is_empty() {
+                return Err(invalid_data(
+                    "protocol-failed U2 pair unexpectedly retained surrogate scores",
+                ));
+            }
+            continue;
+        }
+        if pair.surrogate_scores.len() != expected_scores_per_pair {
+            return Err(invalid_data(
+                "successful U2 pair does not contain the complete dual-null score set",
+            ));
+        }
+
+        for (score_index, score) in pair.surrogate_scores.iter().enumerate() {
+            let (null_family, repetition) = if score_index < expected_per_null {
+                (U2NullFamily::ShuffledMarginal, score_index)
+            } else {
+                (
+                    U2NullFamily::PhaseRandomizedSpectrum,
+                    score_index - expected_per_null,
+                )
+            };
+            let expected_job = expected_plan
+                .surrogate_job(pair.pair_index, null_family, repetition)
+                .ok_or(invalid_data("invalid expected U2 surrogate job"))?;
+            if score.job != expected_job || !score.convergence_score.is_finite() {
+                return Err(invalid_data("invalid U2 surrogate score binding"));
+            }
+            let job = score.job;
+            writeln!(
+                scores,
+                "{}\t{:?}\t{:?}\t{:?}\t{}\t{}\t{:016x}",
+                job.pair_index,
+                job.pair.left,
+                job.pair.right,
+                job.null_family,
+                job.repetition,
+                job.seed,
+                score.convergence_score.to_bits()
+            )?;
+            exported = exported
+                .checked_add(1)
+                .ok_or(invalid_data("U2 score export count overflow"))?;
+        }
+    }
+    finish(scores)?;
+
+    let mut marker = new_file(destination, "SURROGATE_SCORES_COMPLETE")?;
+    writeln!(marker, "surrogate_score_export_complete=true")?;
+    writeln!(marker, "rows={exported}")?;
+    writeln!(marker, "scientific_evidence=false")?;
+    writeln!(marker, "surrogate_arrays_persisted=false")?;
+    finish(marker)
+}
+
 fn new_file(directory: &Path, name: &str) -> io::Result<BufWriter<File>> {
     OpenOptions::new()
         .write(true)
@@ -155,4 +257,8 @@ fn finish(mut writer: BufWriter<File>) -> io::Result<()> {
 
 fn clean(value: &str) -> String {
     value.replace(['\t', '\n', '\r'], " ")
+}
+
+fn invalid_data(message: &'static str) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, message)
 }
