@@ -56,8 +56,9 @@ pub fn capture_surrogate_arrays(
     for job in jobs {
         let left = series_for_family(residuals, job.pair.left)?;
         let right = series_for_family(residuals, job.pair.right)?;
-        let realized = materialize_u2_surrogate_pair(job.to_owned(), &left.residual, &right.residual)
-            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))?;
+        let realized =
+            materialize_u2_surrogate_pair(job.to_owned(), &left.residual, &right.residual)
+                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))?;
         let samples_per_side = realized.left.len();
         let bytes = samples_per_side
             .checked_mul(16)
@@ -97,7 +98,10 @@ pub fn capture_surrogate_arrays(
     writeln!(marker, "jobs={}", jobs.len())?;
     writeln!(marker, "files={}", jobs.len())?;
     writeln!(marker, "bytes={total_bytes}")?;
-    writeln!(marker, "layout=left_then_right_ieee754_binary64_little_endian")?;
+    writeln!(
+        marker,
+        "layout=left_then_right_ieee754_binary64_little_endian"
+    )?;
     writeln!(marker, "scientific_evidence=false")?;
     finish(marker)
 }
@@ -109,7 +113,9 @@ fn series_for_family(
     residuals
         .iter()
         .find(|series| series.family == family)
-        .ok_or(invalid_data("missing U2 residual family for surrogate capture"))
+        .ok_or(invalid_data(
+            "missing U2 residual family for surrogate capture",
+        ))
 }
 
 fn new_file(directory: &Path, name: &str) -> io::Result<BufWriter<File>> {
