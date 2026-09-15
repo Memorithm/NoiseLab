@@ -5,7 +5,9 @@
 //! scientific hypothesis is supported.
 
 use noiselab::u2_manifest::materialize_u2_manifest;
-use noiselab::u2_plan::{U2ExecutionPlan, U2SurrogateJob, U2_FROZEN_PAIRS};
+use noiselab::u2_plan::{
+    U2ExecutionPlan, U2SurrogateJob, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES,
+};
 use noiselab::{
     materialize_u2_surrogate_pair, StageU2PanelConfig, U2ResidualSeries, U2SourceFamily,
 };
@@ -35,8 +37,9 @@ pub fn capture_surrogate_arrays(
         return Err(invalid_data("U2 surrogate job manifest mismatch"));
     }
 
-    for series in residuals {
-        if series.family != series.provenance.family
+    for (series, expected_family) in residuals.iter().zip(U2_FROZEN_SOURCES) {
+        if series.family != expected_family
+            || series.provenance.family != expected_family
             || series.residual.len() != series.provenance.samples
             || series.residual.iter().any(|value| !value.is_finite())
         {
