@@ -29,6 +29,16 @@ use std::fmt::{Display, Formatter};
 /// deterministic without sharing an identical phase draw.
 pub const SPECTRAL_RIGHT_SEED_TAG: u64 = 0x9e37_79b9_7f4a_7c15;
 
+/// Exact score produced by one preregistered surrogate job.
+///
+/// This is execution evidence, not a decision or a claim. The job preserves the
+/// pair/null/repetition/seed identity fixed before outcomes were observed.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct U2SurrogateScore {
+    pub job: U2SurrogateJob,
+    pub convergence_score: f64,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct StageU2PairAnalysis {
     pub pair_index: usize,
@@ -39,6 +49,8 @@ pub struct StageU2PairAnalysis {
     pub p_shuffle: Option<f64>,
     pub p_phase: Option<f64>,
     pub decision: Option<StageU2Decision>,
+    /// Per-job surrogate scores in deterministic order: shuffled then phase.
+    pub surrogate_scores: Vec<U2SurrogateScore>,
     /// Non-empty when a protocol / numerical failure prevented a full decision.
     pub protocol_error: Option<String>,
 }
@@ -53,6 +65,7 @@ pub enum StageU2AnalysisError {
         null_family: U2NullFamily,
     },
     EmptyScales,
+    AllocationFailed,
 }
 
 impl Display for StageU2AnalysisError {
@@ -69,11 +82,20 @@ impl Display for StageU2AnalysisError {
                 "no surrogate jobs for pair {pair_index} under null {null_family:?}"
             ),
             Self::EmptyScales => f.write_str("U2 analysis requires a non-empty scale grid"),
+            Self::AllocationFailed => {
+                f.write_str("unable to allocate U2 per-surrogate score evidence")
+            }
         }
     }
 }
 
 impl Error for StageU2AnalysisError {}
+
+impl From<U2ReadinessError> for StageU2AnalysisError {
+    fn from(value: U2ReadinessError) -> Self {
+        Self::Readiness(value)
+    }
+}
 
 impl From<UniversalityError> for StageU2AnalysisError {
     fn from(value: UniversalityError) -> Self {
@@ -167,18 +189,24 @@ pub fn analyze_u2_pair(
         );
     }
 
-    let p_shuffle = match shuffle_p_value(series_a, series_b, scales, &observed, &shuffle_jobs) {
-        Ok(value) => value,
-        Err(error) => {
-            return finish_protocol_failure(pair_index, pair, retain_protocol_failures, error);
-        }
-    };
-    let p_phase = match phase_p_value(series_a, series_b, scales, &observed, &phase_jobs) {
-        Ok(value) => value,
-        Err(error) => {
-            return finish_protocol_failure(pair_index, pair, retain_protocol_failures, error);
-        }
-    };
+    let (p_shuffle, mut surrogate_scores) =
+        match shuffle_p_value(series_a, series_b, scales, &observed, &shuffle_jobs) {
+            Ok(value) => value,
+            Err(error) => {
+                return finish_protocol_failure(pair_index, pair, retain_protocol_failures, error);
+            }
+        };
+    let (p_phase, phase_scores) =
+        match phase_p_value(series_a, series_b, scales, &observed, &phase_jobs) {
+            Ok(value) => value,
+            Err(error) => {
+                return finish_protocol_failure(pair_index, pair, retain_protocol_failures, error);
+            }
+        };
+    surrogate_scores
+        .try_reserve(phase_scores.len())
+        .map_err(|_| StageU2AnalysisError::AllocationFailed)?;
+    surrogate_scores.extend(phase_scores);
 
     let decision = match classify_stage_u2(observed.convergence_score, p_shuffle, p_phase, alpha) {
         Ok(value) => value,
@@ -201,6 +229,7 @@ pub fn analyze_u2_pair(
         p_shuffle: Some(p_shuffle),
         p_phase: Some(p_phase),
         decision: Some(decision),
+        surrogate_scores,
         protocol_error: None,
     })
 }
@@ -221,6 +250,7 @@ fn finish_protocol_failure(
             p_shuffle: None,
             p_phase: None,
             decision: None,
+            surrogate_scores: Vec::new(),
             protocol_error: Some(error.to_string()),
         })
     } else {
@@ -239,14 +269,23 @@ fn jobs_for(
         .collect()
 }
 
+fn score_buffer(capacity: usize) -> Result<Vec<U2SurrogateScore>, StageU2AnalysisError> {
+    let mut scores = Vec::new();
+    scores
+        .try_reserve_exact(capacity)
+        .map_err(|_| StageU2AnalysisError::AllocationFailed)?;
+    Ok(scores)
+}
+
 fn shuffle_p_value(
     series_a: &[f64],
     series_b: &[f64],
     scales: &[usize],
     observed: &ObservedMultiscaleComparison,
     jobs: &[U2SurrogateJob],
-) -> Result<f64, StageU2AnalysisError> {
+) -> Result<(f64, Vec<U2SurrogateScore>), StageU2AnalysisError> {
     let mut at_least_as_extreme = 0usize;
+    let mut scores = score_buffer(jobs.len())?;
     for job in jobs {
         let mut surrogate_a = series_a.to_vec();
         let mut surrogate_b = series_b.to_vec();
@@ -258,8 +297,12 @@ fn shuffle_p_value(
         if score >= observed.convergence_score {
             at_least_as_extreme += 1;
         }
+        scores.push(U2SurrogateScore {
+            job: *job,
+            convergence_score: score,
+        });
     }
-    Ok(empirical_p(at_least_as_extreme, jobs.len()))
+    Ok((empirical_p(at_least_as_extreme, jobs.len()), scores))
 }
 
 fn phase_p_value(
@@ -268,8 +311,9 @@ fn phase_p_value(
     scales: &[usize],
     observed: &ObservedMultiscaleComparison,
     jobs: &[U2SurrogateJob],
-) -> Result<f64, StageU2AnalysisError> {
+) -> Result<(f64, Vec<U2SurrogateScore>), StageU2AnalysisError> {
     let mut at_least_as_extreme = 0usize;
+    let mut scores = score_buffer(jobs.len())?;
     for job in jobs {
         let seed_left = job.seed;
         let seed_right = job.seed ^ SPECTRAL_RIGHT_SEED_TAG;
@@ -280,8 +324,12 @@ fn phase_p_value(
         if score >= observed.convergence_score {
             at_least_as_extreme += 1;
         }
+        scores.push(U2SurrogateScore {
+            job: *job,
+            convergence_score: score,
+        });
     }
-    Ok(empirical_p(at_least_as_extreme, jobs.len()))
+    Ok((empirical_p(at_least_as_extreme, jobs.len()), scores))
 }
 
 fn empirical_p(at_least_as_extreme: usize, repetitions: usize) -> f64 {
@@ -353,6 +401,34 @@ mod tests {
         assert!((0.0..=1.0).contains(&p_phase));
         assert!(first.decision.is_some());
         assert_eq!(first.pair.left, U2SourceFamily::DrivenDampedOscillator);
+        assert_eq!(first.surrogate_scores.len(), 38);
+        assert!(
+            first.surrogate_scores[..19]
+                .iter()
+                .all(|score| score.job.null_family == U2NullFamily::ShuffledMarginal)
+        );
+        assert!(
+            first.surrogate_scores[19..]
+                .iter()
+                .all(|score| score.job.null_family == U2NullFamily::PhaseRandomizedSpectrum)
+        );
+        assert!(
+            first
+                .surrogate_scores
+                .iter()
+                .all(|score| score.convergence_score.is_finite())
+        );
+
+        let shuffle_extreme = first.surrogate_scores[..19]
+            .iter()
+            .filter(|score| score.convergence_score >= first.convergence_score)
+            .count();
+        let phase_extreme = first.surrogate_scores[19..]
+            .iter()
+            .filter(|score| score.convergence_score >= first.convergence_score)
+            .count();
+        assert_eq!(p_shuffle, empirical_p(shuffle_extreme, 19));
+        assert_eq!(p_phase, empirical_p(phase_extreme, 19));
     }
 
     #[test]
@@ -389,5 +465,6 @@ mod tests {
         .unwrap();
         assert!(result.protocol_error.is_some());
         assert!(result.decision.is_none());
+        assert!(result.surrogate_scores.is_empty());
     }
 }
