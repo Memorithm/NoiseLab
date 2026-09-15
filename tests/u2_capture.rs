@@ -6,9 +6,7 @@ mod u2_capture;
 mod u2_surrogate_arrays;
 
 use noiselab::u2_manifest::materialize_u2_manifest;
-use noiselab::u2_plan::{
-    U2ExecutionPlan, U2SurrogateJob, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES,
-};
+use noiselab::u2_plan::{U2ExecutionPlan, U2SurrogateJob, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES};
 use noiselab::universality_u2_panel::{run_stage_u2_panel_with_capture, StageU2PanelError};
 use noiselab::{
     analyze_u2_pair, materialize_u2_surrogate_pair, residual_for_family, StageU2PairRequest,
@@ -216,12 +214,9 @@ fn surrogate_array_capture_is_complete_bit_exact_and_manifest_bound() {
     let first_job = jobs[0];
     let first_left = residual_for_family(&residuals, first_job.pair.left);
     let first_right = residual_for_family(&residuals, first_job.pair.right);
-    let expected = materialize_u2_surrogate_pair(
-        first_job,
-        &first_left.residual,
-        &first_right.residual,
-    )
-    .unwrap();
+    let expected =
+        materialize_u2_surrogate_pair(first_job, &first_left.residual, &first_right.residual)
+            .unwrap();
     let expected_bytes = expected
         .left
         .iter()
