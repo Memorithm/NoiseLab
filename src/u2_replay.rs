@@ -7,7 +7,7 @@
 
 use crate::u2_manifest::materialize_u2_manifest;
 use crate::u2_plan::{U2ExecutionPlan, U2SurrogateJob, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES};
-use crate::u2_readiness::{U2ReadinessError, U2_SCIRUST_REVISION};
+use crate::u2_readiness::{U2Readiness, U2ReadinessError, U2_SCIRUST_REVISION};
 use crate::u2_sources::{
     residual_for_family, U2ResidualSeries, U2_SOURCE_BURN_IN, U2_SOURCE_SAMPLES,
 };
@@ -17,6 +17,8 @@ use crate::universality_u2::{
 use crate::universality_u2_panel::{StageU2PanelConfig, StageU2PanelMode};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+
+const DATA_SEED_STREAM_MULTIPLIER: u64 = 0x9e37_79b9_7f4a_7c15;
 
 /// Replay output for one already-captured U2 panel input set.
 #[derive(Debug, Clone, PartialEq)]
@@ -43,6 +45,13 @@ pub enum StageU2ReplayError {
     ProvenanceFamilyMismatch { index: usize },
     /// The capture names a SciRust revision other than the frozen U2 revision.
     ScirustRevisionMismatch { index: usize },
+    /// A captured residual provenance record does not contain the per-family seed
+    /// implied by the canonical panel data-seed root.
+    DataSeedMismatch {
+        index: usize,
+        expected: u64,
+        actual: u64,
+    },
     /// The retained residual length or recorded sample count is not canonical.
     SampleCountMismatch {
         index: usize,
@@ -88,6 +97,14 @@ impl Display for StageU2ReplayError {
             Self::ScirustRevisionMismatch { index } => write!(
                 f,
                 "captured U2 residual {index} does not name the frozen SciRust revision"
+            ),
+            Self::DataSeedMismatch {
+                index,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "captured U2 residual {index} records data seed {actual:#018x}, expected {expected:#018x}"
             ),
             Self::SampleCountMismatch {
                 index,
@@ -163,7 +180,8 @@ pub fn replay_stage_u2_captured_inputs(
         return Err(StageU2ReplayError::ConfigurationDrift);
     }
 
-    validate_residuals(residuals)?;
+    U2Readiness::preregistered().validate()?;
+    validate_residuals(residuals, config.data_seed)?;
 
     let plan = match config.mode {
         StageU2PanelMode::Scientific => U2ExecutionPlan::preregistered(config.surrogate_seed_root)?,
@@ -203,7 +221,10 @@ pub fn replay_stage_u2_captured_inputs(
     })
 }
 
-fn validate_residuals(residuals: &[U2ResidualSeries; 4]) -> Result<(), StageU2ReplayError> {
+fn validate_residuals(
+    residuals: &[U2ResidualSeries; 4],
+    data_seed_root: u64,
+) -> Result<(), StageU2ReplayError> {
     for (index, expected) in U2_FROZEN_SOURCES.iter().copied().enumerate() {
         let series = &residuals[index];
         if series.family != expected {
@@ -218,6 +239,14 @@ fn validate_residuals(residuals: &[U2ResidualSeries; 4]) -> Result<(), StageU2Re
         }
         if series.provenance.scirust_revision != U2_SCIRUST_REVISION {
             return Err(StageU2ReplayError::ScirustRevisionMismatch { index });
+        }
+        let expected_seed = derive_source_seed(data_seed_root, index);
+        if series.provenance.data_seed != expected_seed {
+            return Err(StageU2ReplayError::DataSeedMismatch {
+                index,
+                expected: expected_seed,
+                actual: series.provenance.data_seed,
+            });
         }
         if series.residual.len() != U2_SOURCE_SAMPLES
             || series.provenance.samples != U2_SOURCE_SAMPLES
@@ -241,6 +270,11 @@ fn validate_residuals(residuals: &[U2ResidualSeries; 4]) -> Result<(), StageU2Re
         }
     }
     Ok(())
+}
+
+fn derive_source_seed(root: u64, family_index: usize) -> u64 {
+    let stream = u64::try_from(family_index + 1).expect("four U2 families fit in u64");
+    root ^ stream.wrapping_mul(DATA_SEED_STREAM_MULTIPLIER)
 }
 
 #[cfg(test)]
@@ -296,6 +330,21 @@ mod tests {
             Err(StageU2ReplayError::NonFiniteResidual {
                 index: 2,
                 sample: 17,
+            })
+        );
+    }
+
+    #[test]
+    fn noncanonical_data_seed_is_rejected() {
+        let (config, _, jobs) = smoke_inputs();
+        let residuals = generate_u2_residuals(config.data_seed ^ 1).unwrap();
+        let expected = derive_source_seed(config.data_seed, 0);
+        assert_eq!(
+            replay_stage_u2_captured_inputs(&config, &residuals, &jobs),
+            Err(StageU2ReplayError::DataSeedMismatch {
+                index: 0,
+                expected,
+                actual: residuals[0].provenance.data_seed,
             })
         );
     }
