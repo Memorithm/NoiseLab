@@ -147,8 +147,8 @@ fn captured_arrays_and_jobs_reproduce_the_actual_pair_analysis() {
     tampered_score.job.seed ^= 1;
     let tampered_path = directory.0.join("scores-tampered");
     fs::create_dir(&tampered_path).unwrap();
-    let error = u2_capture::capture_surrogate_scores(&tampered_path, &config, &tampered_pairs)
-        .unwrap_err();
+    let error =
+        u2_capture::capture_surrogate_scores(&tampered_path, &config, &tampered_pairs).unwrap_err();
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
     assert!(!tampered_path.join("SURROGATE_SCORES_COMPLETE").exists());
 }
