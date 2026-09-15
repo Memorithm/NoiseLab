@@ -28,6 +28,7 @@ pub mod u2_decision;
 pub mod u2_manifest;
 pub mod u2_plan;
 pub mod u2_readiness;
+pub mod u2_replay;
 pub mod u2_sources;
 pub mod universality;
 pub mod universality_panel;
@@ -104,6 +105,7 @@ pub use u2_readiness::{
     U2Readiness, U2ReadinessError, U2_MIN_SURROGATES_PER_NULL, U2_SCIRUST_REVISION,
     U2_SOURCE_FAMILIES, U2_UNORDERED_PAIRS,
 };
+pub use u2_replay::{replay_stage_u2_captured_inputs, StageU2ReplayError, StageU2ReplayResult};
 pub use universality::{
     multiscale_trace, observed_multiscale_comparison, test_fluctuation_universality,
     FluctuationSignature, MultiscaleTrace, ObservedMultiscaleComparison, ScaleDistance,
