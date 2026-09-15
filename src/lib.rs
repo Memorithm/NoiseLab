@@ -122,7 +122,7 @@ pub use u2_sources::{
 };
 pub use universality_u2::{
     analyze_u2_pair, StageU2AnalysisError, StageU2PairAnalysis, StageU2PairRequest,
-    SPECTRAL_RIGHT_SEED_TAG,
+    U2SurrogateScore, SPECTRAL_RIGHT_SEED_TAG,
 };
 pub use universality_u2_panel::{
     run_stage_u2_panel, StageU2PanelConfig, StageU2PanelError, StageU2PanelMode,
