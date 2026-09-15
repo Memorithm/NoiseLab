@@ -41,16 +41,7 @@ impl Drop for TemporaryDirectory {
 fn fixtures() -> [U2ResidualSeries; 4] {
     std::array::from_fn(|index| {
         let family = U2_FROZEN_SOURCES[index];
-        let residual = vec![
-            -0.0,
-            0.0,
-            f64::from_bits(1),
-            -1.25,
-            2.5,
-            -3.0,
-            4.0,
-            -5.5,
-        ];
+        let residual = vec![-0.0, 0.0, f64::from_bits(1), -1.25, 2.5, -3.0, 4.0, -5.5];
         U2ResidualSeries {
             family,
             provenance: U2ResidualProvenance {
