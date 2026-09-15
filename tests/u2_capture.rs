@@ -41,7 +41,16 @@ impl Drop for TemporaryDirectory {
 fn fixtures() -> [U2ResidualSeries; 4] {
     std::array::from_fn(|index| {
         let family = U2_FROZEN_SOURCES[index];
-        let residual = vec![-0.0, 0.0, f64::from_bits(1), -1.25, 2.5];
+        let residual = vec![
+            -0.0,
+            0.0,
+            f64::from_bits(1),
+            -1.25,
+            2.5,
+            -3.0,
+            4.0,
+            -5.5,
+        ];
         U2ResidualSeries {
             family,
             provenance: U2ResidualProvenance {
@@ -208,7 +217,7 @@ fn surrogate_array_capture_is_complete_bit_exact_and_manifest_bound() {
     assert_eq!(index.lines().count(), jobs.len() + 1);
     let marker = fs::read_to_string(path.join("SURROGATE_ARRAYS_COMPLETE")).unwrap();
     assert!(marker.contains(&format!("jobs={}", jobs.len())));
-    assert!(marker.contains(&format!("bytes={}", jobs.len() * 5 * 16)));
+    assert!(marker.contains(&format!("bytes={}", jobs.len() * 8 * 16)));
     assert!(marker.contains("scientific_evidence=false"));
 
     let first_job = jobs[0];
