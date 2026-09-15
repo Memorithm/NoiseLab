@@ -396,22 +396,16 @@ mod tests {
         assert!(first.decision.is_some());
         assert_eq!(first.pair.left, U2SourceFamily::DrivenDampedOscillator);
         assert_eq!(first.surrogate_scores.len(), 38);
-        assert!(
-            first.surrogate_scores[..19]
-                .iter()
-                .all(|score| score.job.null_family == U2NullFamily::ShuffledMarginal)
-        );
-        assert!(
-            first.surrogate_scores[19..]
-                .iter()
-                .all(|score| score.job.null_family == U2NullFamily::PhaseRandomizedSpectrum)
-        );
-        assert!(
-            first
-                .surrogate_scores
-                .iter()
-                .all(|score| score.convergence_score.is_finite())
-        );
+        assert!(first.surrogate_scores[..19]
+            .iter()
+            .all(|score| score.job.null_family == U2NullFamily::ShuffledMarginal));
+        assert!(first.surrogate_scores[19..]
+            .iter()
+            .all(|score| score.job.null_family == U2NullFamily::PhaseRandomizedSpectrum));
+        assert!(first
+            .surrogate_scores
+            .iter()
+            .all(|score| score.convergence_score.is_finite()));
 
         let shuffle_extreme = first.surrogate_scores[..19]
             .iter()
