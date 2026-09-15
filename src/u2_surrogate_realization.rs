@@ -41,10 +41,16 @@ impl Display for U2SurrogateRealizationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::LengthMismatch { left, right } => {
-                write!(f, "U2 surrogate inputs have different lengths: left={left}, right={right}")
+                write!(
+                    f,
+                    "U2 surrogate inputs have different lengths: left={left}, right={right}"
+                )
             }
             Self::NonFiniteInput { side, index } => {
-                write!(f, "U2 surrogate {side} input contains a non-finite value at index {index}")
+                write!(
+                    f,
+                    "U2 surrogate {side} input contains a non-finite value at index {index}"
+                )
             }
             Self::AllocationFailed => f.write_str("unable to allocate U2 surrogate realization"),
             Self::Spectral(error) => write!(f, "U2 spectral-null realization failed: {error}"),
@@ -210,16 +216,15 @@ mod tests {
                 .iter()
                 .find(|score| score.job.null_family == null_family && score.job.repetition == 0)
                 .unwrap();
-            let realization =
-                materialize_u2_surrogate_pair(score.job, &left, &right).unwrap();
-            let reproduced_score = observed_multiscale_comparison(
-                &realization.left,
-                &realization.right,
-                &scales,
-            )
-            .unwrap()
-            .convergence_score;
-            assert_eq!(reproduced_score.to_bits(), score.convergence_score.to_bits());
+            let realization = materialize_u2_surrogate_pair(score.job, &left, &right).unwrap();
+            let reproduced_score =
+                observed_multiscale_comparison(&realization.left, &realization.right, &scales)
+                    .unwrap()
+                    .convergence_score;
+            assert_eq!(
+                reproduced_score.to_bits(),
+                score.convergence_score.to_bits()
+            );
         }
     }
 
