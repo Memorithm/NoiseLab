@@ -2,12 +2,15 @@
 
 #[path = "../examples/support/u2_capture.rs"]
 mod u2_capture;
+#[path = "../examples/support/u2_surrogate_arrays.rs"]
+mod u2_surrogate_arrays;
 
-use noiselab::u2_plan::{U2SurrogateJob, U2_FROZEN_SOURCES};
+use noiselab::u2_manifest::materialize_u2_manifest;
+use noiselab::u2_plan::{U2ExecutionPlan, U2SurrogateJob, U2_FROZEN_PAIRS, U2_FROZEN_SOURCES};
 use noiselab::universality_u2_panel::{run_stage_u2_panel_with_capture, StageU2PanelError};
 use noiselab::{
-    analyze_u2_pair, residual_for_family, StageU2PairRequest, StageU2PanelConfig,
-    U2ResidualProvenance, U2ResidualSeries, U2_SCIRUST_REVISION,
+    analyze_u2_pair, materialize_u2_surrogate_pair, residual_for_family, StageU2PairRequest,
+    StageU2PanelConfig, U2ResidualProvenance, U2ResidualSeries, U2_SCIRUST_REVISION,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -38,7 +41,7 @@ impl Drop for TemporaryDirectory {
 fn fixtures() -> [U2ResidualSeries; 4] {
     std::array::from_fn(|index| {
         let family = U2_FROZEN_SOURCES[index];
-        let residual = vec![-0.0, 0.0, f64::from_bits(1), -1.25, 2.5];
+        let residual = vec![-0.0, 0.0, f64::from_bits(1), -1.25, 2.5, -3.0, 4.0, -5.5];
         U2ResidualSeries {
             family,
             provenance: U2ResidualProvenance {
@@ -183,6 +186,66 @@ fn snapshot_preserves_bits_including_signed_zero_and_subnormals() {
             .count(),
         5
     );
+}
+
+#[test]
+fn surrogate_array_capture_is_complete_bit_exact_and_manifest_bound() {
+    let directory = TemporaryDirectory::new();
+    let path = directory.0.join("inputs");
+    let residuals = fixtures();
+    let config = StageU2PanelConfig::non_scientific_smoke();
+    let plan = U2ExecutionPlan {
+        pairs: &U2_FROZEN_PAIRS,
+        surrogates_per_null: config.mode.surrogates_per_null(),
+        seed_root: config.surrogate_seed_root,
+    };
+    let jobs = materialize_u2_manifest(plan);
+
+    u2_capture::capture_inputs(&path, &config, &residuals, &jobs).unwrap();
+    u2_surrogate_arrays::capture_surrogate_arrays(&path, &config, &residuals, &jobs).unwrap();
+
+    let index = fs::read_to_string(path.join("surrogate_arrays.tsv")).unwrap();
+    assert_eq!(index.lines().count(), jobs.len() + 1);
+    let marker = fs::read_to_string(path.join("SURROGATE_ARRAYS_COMPLETE")).unwrap();
+    assert!(marker.contains(&format!("jobs={}", jobs.len())));
+    assert!(marker.contains(&format!("bytes={}", jobs.len() * 8 * 16)));
+    assert!(marker.contains("scientific_evidence=false"));
+
+    let first_job = jobs[0];
+    let first_left = residual_for_family(&residuals, first_job.pair.left);
+    let first_right = residual_for_family(&residuals, first_job.pair.right);
+    let expected =
+        materialize_u2_surrogate_pair(first_job, &first_left.residual, &first_right.residual)
+            .unwrap();
+    let expected_bytes = expected
+        .left
+        .iter()
+        .chain(&expected.right)
+        .flat_map(|value| value.to_bits().to_le_bytes())
+        .collect::<Vec<_>>();
+    let first_file = format!(
+        "pair{:02}-{:?}-{:03}.f64le",
+        first_job.pair_index, first_job.null_family, first_job.repetition
+    );
+    assert_eq!(
+        fs::read(path.join("surrogate_arrays").join(first_file)).unwrap(),
+        expected_bytes
+    );
+
+    let tampered_path = directory.0.join("tampered-inputs");
+    let mut tampered_jobs = jobs.clone();
+    tampered_jobs[0].seed ^= 1;
+    u2_capture::capture_inputs(&tampered_path, &config, &residuals, &tampered_jobs).unwrap();
+    let error = u2_surrogate_arrays::capture_surrogate_arrays(
+        &tampered_path,
+        &config,
+        &residuals,
+        &tampered_jobs,
+    )
+    .unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+    assert!(!tampered_path.join("surrogate_arrays").exists());
+    assert!(!tampered_path.join("SURROGATE_ARRAYS_COMPLETE").exists());
 }
 
 #[test]
