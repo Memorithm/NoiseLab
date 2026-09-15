@@ -11,7 +11,9 @@ use crate::u2_readiness::{U2ReadinessError, U2_SCIRUST_REVISION};
 use crate::u2_sources::{
     residual_for_family, U2ResidualSeries, U2_SOURCE_BURN_IN, U2_SOURCE_SAMPLES,
 };
-use crate::universality_u2::{analyze_u2_pair, StageU2AnalysisError, StageU2PairAnalysis, StageU2PairRequest};
+use crate::universality_u2::{
+    analyze_u2_pair, StageU2AnalysisError, StageU2PairAnalysis, StageU2PairRequest,
+};
 use crate::universality_u2_panel::{StageU2PanelConfig, StageU2PanelMode};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -247,7 +249,11 @@ mod tests {
     use crate::u2_sources::generate_u2_residuals;
     use crate::universality_u2_panel::run_stage_u2_panel;
 
-    fn smoke_inputs() -> (StageU2PanelConfig, [U2ResidualSeries; 4], Vec<U2SurrogateJob>) {
+    fn smoke_inputs() -> (
+        StageU2PanelConfig,
+        [U2ResidualSeries; 4],
+        Vec<U2SurrogateJob>,
+    ) {
         let config = StageU2PanelConfig::non_scientific_smoke();
         let residuals = generate_u2_residuals(config.data_seed).unwrap();
         let plan = U2ExecutionPlan {
