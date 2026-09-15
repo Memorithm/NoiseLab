@@ -158,7 +158,9 @@ pub fn capture_surrogate_scores(
     pairs: &[StageU2PairAnalysis],
 ) -> io::Result<()> {
     if pairs.len() != U2_FROZEN_PAIRS.len() {
-        return Err(invalid_data("U2 score export does not contain all frozen pairs"));
+        return Err(invalid_data(
+            "U2 score export does not contain all frozen pairs",
+        ));
     }
 
     let expected_per_null = config.mode.surrogates_per_null();
@@ -171,7 +173,8 @@ pub fn capture_surrogate_scores(
 
     let mut exported = 0usize;
     for (expected_pair_index, pair) in pairs.iter().enumerate() {
-        if pair.pair_index != expected_pair_index || pair.pair != U2_FROZEN_PAIRS[expected_pair_index]
+        if pair.pair_index != expected_pair_index
+            || pair.pair != U2_FROZEN_PAIRS[expected_pair_index]
         {
             return Err(invalid_data("U2 pair result identity mismatch"));
         }
