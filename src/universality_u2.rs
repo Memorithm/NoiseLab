@@ -91,12 +91,6 @@ impl Display for StageU2AnalysisError {
 
 impl Error for StageU2AnalysisError {}
 
-impl From<U2ReadinessError> for StageU2AnalysisError {
-    fn from(value: U2ReadinessError) -> Self {
-        Self::Readiness(value)
-    }
-}
-
 impl From<UniversalityError> for StageU2AnalysisError {
     fn from(value: UniversalityError) -> Self {
         Self::Universality(value)
