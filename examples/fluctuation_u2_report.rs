@@ -6,11 +6,13 @@
 //!
 //! Smoke output is not scientific evidence and must not be recorded as U2
 //! results. The full-load selector does not itself validate a scientific claim.
-//! Set `NOISELAB_U2_CAPTURE_DIR` to a new directory to persist the exact inputs
-//! and, after analysis completes, the exact per-surrogate convergence scores.
+//! Set `NOISELAB_U2_CAPTURE_DIR` to a new directory to persist the exact inputs,
+//! realized surrogate arrays and, after analysis, per-surrogate convergence scores.
 
 #[path = "support/u2_capture.rs"]
 mod u2_capture;
+#[path = "support/u2_surrogate_arrays.rs"]
+mod u2_surrogate_arrays;
 
 use noiselab::report_mode::ReportMode;
 use noiselab::universality_u2_panel::run_stage_u2_panel_with_capture;
@@ -48,6 +50,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = run_stage_u2_panel_with_capture(&config, |residuals, jobs| {
         if let Some(path) = &capture_dir {
             u2_capture::capture_inputs(path, &config, residuals, jobs)
+                .map_err(|error| error.to_string())?;
+            u2_surrogate_arrays::capture_surrogate_arrays(path, &config, residuals, jobs)
                 .map_err(|error| error.to_string())?;
         }
         Ok(())
