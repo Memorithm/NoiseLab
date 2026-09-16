@@ -72,7 +72,10 @@ pub fn verify_archived_pair_results(
         return Err(invalid_data("unexpected extra U2 pair-result row"));
     }
 
-    let successful = rows.iter().filter(|row| row.protocol_error.is_none()).count();
+    let successful = rows
+        .iter()
+        .filter(|row| row.protocol_error.is_none())
+        .count();
     let failed = rows.len() - successful;
     if marker_usize(&marker, "successful_rows")? != successful
         || marker_usize(&marker, "protocol_error_rows")? != failed
@@ -119,8 +122,7 @@ fn parse_row(
     }
 
     let fine_scale_distance = parse_f64_bits(fields[3], "invalid U2 fine-distance bits")?;
-    let terminal_scale_distance =
-        parse_f64_bits(fields[4], "invalid U2 terminal-distance bits")?;
+    let terminal_scale_distance = parse_f64_bits(fields[4], "invalid U2 terminal-distance bits")?;
     let convergence_score = parse_f64_bits(fields[5], "invalid U2 convergence-score bits")?;
     let protocol_error = (!fields[9].is_empty()).then(|| fields[9].to_owned());
 
