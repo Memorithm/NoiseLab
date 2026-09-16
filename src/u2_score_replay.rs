@@ -143,10 +143,7 @@ pub fn replay_u2_statistics_from_scores(
         scores,
     )?;
 
-    let p_shuffle = empirical_p(
-        shuffled_at_least_as_extreme,
-        plan.surrogates_per_null,
-    );
+    let p_shuffle = empirical_p(shuffled_at_least_as_extreme, plan.surrogates_per_null);
     let p_phase = empirical_p(phase_at_least_as_extreme, plan.surrogates_per_null);
     let decision = classify_stage_u2(observed_convergence_score, p_shuffle, p_phase, alpha)?;
 
@@ -235,10 +232,7 @@ mod tests {
         assert_eq!(replay.phase_at_least_as_extreme, 0);
         assert_eq!(replay.p_shuffle, 0.75);
         assert_eq!(replay.p_phase, 0.25);
-        assert_eq!(
-            replay.decision,
-            StageU2Decision::CompatibleWithMarginalNull
-        );
+        assert_eq!(replay.decision, StageU2Decision::CompatibleWithMarginalNull);
     }
 
     #[test]
@@ -294,13 +288,7 @@ mod tests {
 
         let ordinary = plan(1);
         assert_eq!(
-            replay_u2_statistics_from_scores(
-                ordinary,
-                U2_FROZEN_PAIRS.len(),
-                0.1,
-                0.05,
-                &[]
-            ),
+            replay_u2_statistics_from_scores(ordinary, U2_FROZEN_PAIRS.len(), 0.1, 0.05, &[]),
             Err(U2ScoreReplayError::PairIndexOutOfRange {
                 pair_index: U2_FROZEN_PAIRS.len()
             })
