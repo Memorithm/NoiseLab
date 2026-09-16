@@ -1,5 +1,6 @@
 //! Archived-surrogate replay regressions. Synthetic fixtures are not scientific evidence.
 
+#[allow(dead_code)]
 #[path = "../examples/support/u2_capture.rs"]
 mod u2_capture;
 #[path = "../examples/support/u2_surrogate_arrays.rs"]
