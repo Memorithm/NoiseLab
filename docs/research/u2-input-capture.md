@@ -139,16 +139,37 @@ match the replayed binary64 bits exactly and the retained decision must be
 identical. Successful rows also require finite observed distances/convergence.
 
 Protocol-failure rows are preserved explicitly. They may not contain p-values,
-a decision or partial surrogate-score evidence. The exporter writes
-`PAIR_RESULTS_COMPLETE` only after all six rows satisfy these rules. A failed
-export may leave a partial `pair_results.tsv` as diagnostic material, but never a
-completion marker.
+a decision or partial surrogate-score evidence, and their error text must be
+non-empty so the retained row cannot be confused with a successful row. The
+exporter writes `PAIR_RESULTS_COMPLETE` only after all six rows satisfy these
+rules. A failed export may leave a partial `pair_results.tsv` as diagnostic
+material, but never a completion marker.
 
-The current capture path writes `pair_results.tsv`; direct parsing/replay of that
-persisted TSV back into a typed pair-result object is still a separate boundary.
-Likewise, capture does not authenticate the bundle against replacement of both
-data and manifest and does not turn exploratory U2 output into scientific
-acceptance.
+Capture does not authenticate the bundle against replacement of both data and
+manifest and does not turn exploratory U2 output into scientific acceptance.
+
+## Typed replay of retained pair results
+
+`verify_archived_pair_results` parses the persisted `pair_results.tsv` and
+`PAIR_RESULTS_COMPLETE` back into typed pair-result rows. It requires the exact
+six frozen pair identities in canonical order, validates the completion counts
+and exact configured alpha bits, decodes the retained binary64 fields, and
+reapplies `classify_stage_u2` to every successful row. A changed decision,
+malformed p-value, non-finite successful statistic, row-count drift or marker
+alpha drift fails closed.
+
+Protocol-failure rows replay only when their non-empty error text is retained and
+the p-value/decision fields remain absent. Their observed fields may retain the
+non-finite diagnostic values produced by the failed execution; those values are
+not interpreted as successful statistics.
+
+This typed replay deliberately does **not** reread `surrogate_scores.tsv` or
+reconstruct p-values from disk. The score-to-pair binding was enforced before
+pair-result publication by `capture_pair_results`; independent disk-to-disk
+verification of the pair-result artifact against the retained score table would
+be a stronger, separately reviewable integrity boundary. Typed replay is not a
+scientific verdict, bundle authentication or permission to consume a protected
+holdout.
 
 ## Non-scientific smoke example
 
@@ -170,9 +191,10 @@ python3 scripts/evidence_bundle.py verify "$bundle"
 ```
 
 The full workload remains separately explicit under the frozen U2 protocol. A
-snapshot, array export, score export, score/statistics replay, pair-result export
-or checksum does not by itself become a scientific verdict. No full scientific
-campaign is run merely by this reproducibility surface.
+snapshot, array export, score export, score/statistics replay, pair-result export,
+typed pair-result replay or checksum does not by itself become a scientific
+verdict. No full scientific campaign is run merely by this reproducibility
+surface.
 
 ## Byte-integrity sealing
 
@@ -207,8 +229,10 @@ stored score bit and reject non-finite tampering in a retained surrogate payload
 Score-statistics replay regressions check exact `+1` p-values, the decision
 boundary and malformed/reordered/non-finite score evidence. Pair-result capture
 regressions require successful rows to match that replay exactly and reject a
-one-bit p-value mutation. These fixtures are synthetic and explicitly
-non-scientific.
+one-bit p-value mutation or an ambiguous empty protocol error. Typed pair-result
+replay regressions verify exact parsing, classifier agreement, alpha-marker
+binding and protocol-failure preservation. These fixtures are synthetic and
+explicitly non-scientific.
 
 The `Research report smoke contracts` workflow retains source/protocol copies,
 including the pair-result exporter, resolved dependency information,
@@ -224,8 +248,9 @@ retention.
 A complete future scientific dossier still needs an approved full-load run,
 reviewed six-pair outcomes, retained source-generation failures where applicable
 and durable archival outside transient CI storage. Array replay, score replay,
-frozen-statistics replay and replay-bound pair-result retention are integrity
-capabilities; none is a new scientific decision path. Direct typed replay from
-the persisted pair-result artifact and any eventual dossier acceptance remain
+frozen-statistics replay, replay-bound pair-result retention and typed pair-result
+replay are integrity capabilities; none is a new scientific decision path.
+Independent disk-to-disk verification from retained surrogate scores through the
+persisted pair-result artifact, and any eventual dossier acceptance, remain
 separately reviewable boundaries. U0/U1 results and the exploratory U2
 multiplicity policy remain unchanged.
