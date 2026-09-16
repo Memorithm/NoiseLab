@@ -49,23 +49,33 @@ universality or FHN robustness. See [report automation](docs/REPORT_AUTOMATION.m
 U2 can additionally retain the exact post-burn-in residual arrays before pair
 analysis through `NOISELAB_U2_CAPTURE_DIR`: lossless binary64 inputs, extraction
 provenance, descriptors, the preregistered surrogate job manifest, every realized
-surrogate array and every retained surrogate score. Array files bind exact
-pair/null/repetition/seed identities and are persisted before pair analysis;
-score export revalidates those frozen job identities after analysis. The CI
-repeats and compares these snapshots, checks no-overwrite behavior and seals the
-combined U2/FHN artifact directory with a SHA-256 manifest. Integrity is not
-authentication or a scientific verdict; full pre-extraction trajectories remain
-outside the capture bundle. Archived surrogate arrays can also be replayed
-directly without regenerating source trajectories or null transformations:
-`verify_archived_surrogate_scores` validates the frozen job/index binding,
-decodes the retained binary64 arrays, recomputes the declared multiscale score
-and requires exact IEEE-754 bit equality with each archived score row.
-`replay_u2_statistics_from_scores` then provides a separate core primitive that
-revalidates the exact preregistered score ordering and independently recomputes
-the one-sided `+1` p-values and frozen U2 decision from those retained scores and
-an observed convergence score, without regenerating surrogate arrays. Neither
-primitive binds the replay to a stored pair-result artifact or authorizes a
-scientific claim; that end-to-end evidence boundary remains separate. See
+surrogate array, every retained surrogate score and replay-bound pair results.
+Array files bind exact pair/null/repetition/seed identities and are persisted
+before pair analysis; score export revalidates those frozen job identities after
+analysis. Archived surrogate arrays can be replayed directly without regenerating
+source trajectories or null transformations: `verify_archived_surrogate_scores`
+validates the frozen job/index binding, decodes retained binary64 arrays,
+recomputes the declared multiscale score and requires exact IEEE-754 bit equality
+with each archived score row. `replay_u2_statistics_from_scores` independently
+recomputes the frozen one-sided `+1` p-values and U2 decision from the retained
+score sequence. Pair-result capture accepts a successful pair only after those
+replayed p-values and the frozen decision match bit-for-bit, while the typed pair
+reader rejects malformed, partial or decision-inconsistent archives.
+`verify_archived_pair_results_against_scores` then re-reads
+`surrogate_scores.tsv` and the persisted pair-result artifact independently and
+requires every successful pair result to derive from the complete archived score
+sequence; protocol-failure pairs must retain no surrogate scores.
+
+The CI repeats and compares these snapshots, checks no-overwrite behavior and
+seals the combined U2/FHN artifact directory with a SHA-256 manifest. Bundle
+verification can additionally require an independently retained manifest digest
+through `--expected-manifest-sha256`, which detects a coherent replacement and
+reseal only when the expected digest itself crosses a separate trust boundary.
+These mechanisms provide byte/replay integrity, not scientific authentication or
+a scientific verdict. They do not regenerate the original source trajectories,
+rerun U2, alter the frozen statistical protocol, open a protected holdout or
+establish universality, resonance, a common physical mechanism or cosmological
+origin. Full pre-extraction trajectories remain outside the capture bundle. See
 [input capture and bundles](docs/research/u2-input-capture.md).
 
 ```bash
