@@ -61,7 +61,11 @@ fn synthetic_pairs(config: &StageU2PanelConfig) -> Vec<StageU2PairAnalysis> {
                 for repetition in 0..plan.surrogates_per_null {
                     let convergence_score = match null_family {
                         U2NullFamily::ShuffledMarginal => {
-                            if repetition % 2 == 0 { 0.75 } else { 0.25 }
+                            if repetition % 2 == 0 {
+                                0.75
+                            } else {
+                                0.25
+                            }
                         }
                         U2NullFamily::PhaseRandomizedSpectrum => 0.125,
                     };
