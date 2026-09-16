@@ -116,8 +116,7 @@ fn archived_pair_results_replay_to_typed_rows() {
     let config = StageU2PanelConfig::non_scientific_smoke();
     let directory = fixture(&config);
 
-    let rows =
-        u2_pair_result_replay::verify_archived_pair_results(&directory.0, &config).unwrap();
+    let rows = u2_pair_result_replay::verify_archived_pair_results(&directory.0, &config).unwrap();
 
     assert_eq!(rows.len(), U2_FROZEN_PAIRS.len());
     assert!(rows.iter().all(|row| row.protocol_error.is_none()));
@@ -176,9 +175,11 @@ fn protocol_failure_row_replays_without_fabricated_statistics() {
     pairs[0].protocol_error = Some("synthetic protocol failure".to_string());
     u2_pair_results::capture_pair_results(&directory.0, &config, &pairs).unwrap();
 
-    let rows =
-        u2_pair_result_replay::verify_archived_pair_results(&directory.0, &config).unwrap();
-    assert_eq!(rows[0].protocol_error.as_deref(), Some("synthetic protocol failure"));
+    let rows = u2_pair_result_replay::verify_archived_pair_results(&directory.0, &config).unwrap();
+    assert_eq!(
+        rows[0].protocol_error.as_deref(),
+        Some("synthetic protocol failure")
+    );
     assert!(rows[0].p_shuffle.is_none());
     assert!(rows[0].p_phase.is_none());
     assert!(rows[0].decision.is_none());
