@@ -184,3 +184,23 @@ fn protocol_failure_row_replays_without_fabricated_statistics() {
     assert!(rows[0].p_phase.is_none());
     assert!(rows[0].decision.is_none());
 }
+
+#[test]
+fn empty_protocol_failure_text_is_rejected_before_capture_completion() {
+    let config = StageU2PanelConfig::non_scientific_smoke();
+    let directory = TemporaryDirectory::new();
+    retained_score_marker(&directory.0);
+    let mut pairs = synthetic_pairs(&config);
+    pairs[0].fine_scale_distance = f64::NAN;
+    pairs[0].terminal_scale_distance = f64::NAN;
+    pairs[0].convergence_score = f64::NAN;
+    pairs[0].p_shuffle = None;
+    pairs[0].p_phase = None;
+    pairs[0].decision = None;
+    pairs[0].surrogate_scores.clear();
+    pairs[0].protocol_error = Some(String::new());
+
+    let error = u2_pair_results::capture_pair_results(&directory.0, &config, &pairs).unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+    assert!(!directory.0.join("PAIR_RESULTS_COMPLETE").exists());
+}
