@@ -4,15 +4,21 @@
 Examples:
     python3 scripts/evidence_bundle.py seal artifacts/smoke
     python3 scripts/evidence_bundle.py verify artifacts/smoke
+    python3 scripts/evidence_bundle.py verify artifacts/smoke \
+      --expected-manifest-sha256 "$TRUSTED_MANIFEST_SHA256"
 
 SHA-256 checks bind retained bytes, not their truth or authorship. Keep the
-printed manifest digest in an independent trusted record. Do not use this tool
-as an isolation boundary against a concurrently hostile filesystem.
+printed manifest digest in an independent trusted record. Supplying that digest
+back through ``--expected-manifest-sha256`` detects wholesale replacement of a
+bundle plus its manifest, but only to the extent that the caller's expected
+digest is itself obtained from an independent trusted channel. Do not use this
+tool as an isolation boundary against a concurrently hostile filesystem.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -52,6 +58,7 @@ def _paths(root: Path) -> list[str]:
         raise BundleError("artifact root must be a real directory")
     paths: list[str] = []
     directory_count = 0
+
     def reject_walk_error(error: OSError) -> None:
         raise BundleError(f"cannot inventory directory: {error}") from error
 
@@ -126,18 +133,34 @@ def _validate_manifest(document: object) -> list[dict[str, object]]:
     return records
 
 
-def verify(root: Path) -> str:
+def _validate_expected_manifest_sha256(digest: str) -> str:
+    if not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise BundleError("expected manifest SHA-256 must be 64 lowercase hexadecimal characters")
+    return digest
+
+
+def verify(root: Path, expected_manifest_sha256: str | None = None) -> str:
     """Verify the complete regular-file set; return the manifest's SHA-256.
 
     This detects omissions, extra files and byte changes relative to the saved
-    manifest. It does not authenticate a manifest replaced with its data.
+    manifest. When ``expected_manifest_sha256`` is supplied, the manifest digest
+    must also match that independently retained lowercase SHA-256 value. This
+    detects wholesale manifest+payload replacement only when the expected digest
+    itself comes from a separate trusted channel.
     """
+    if expected_manifest_sha256 is not None:
+        expected_manifest_sha256 = _validate_expected_manifest_sha256(expected_manifest_sha256)
     _paths(root)  # Reject a symlink root/manifest before reading JSON.
     raw = _regular_bytes(root / MANIFEST, MAX_MANIFEST_BYTES)
     expected = _validate_manifest(json.loads(raw, object_pairs_hook=_unique_object))
     if _inventory(root) != expected:
         raise BundleError("bundle files, lengths or SHA-256 digests do not match")
-    return hashlib.sha256(raw).hexdigest()
+    digest = hashlib.sha256(raw).hexdigest()
+    if expected_manifest_sha256 is not None and not hmac.compare_digest(
+        digest, expected_manifest_sha256
+    ):
+        raise BundleError("manifest SHA-256 does not match trusted expected digest")
+    return digest
 
 
 def seal(root: Path) -> str:
@@ -165,9 +188,20 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("seal", "verify"))
     parser.add_argument("directory", type=Path)
+    parser.add_argument(
+        "--expected-manifest-sha256",
+        metavar="HEX",
+        help="trusted independently retained manifest SHA-256; valid only for verify",
+    )
     args = parser.parse_args()
+    if args.action == "seal" and args.expected_manifest_sha256 is not None:
+        parser.error("--expected-manifest-sha256 is valid only with verify")
     try:
-        digest = (seal if args.action == "seal" else verify)(args.directory)
+        digest = (
+            seal(args.directory)
+            if args.action == "seal"
+            else verify(args.directory, args.expected_manifest_sha256)
+        )
     except (OSError, ValueError, RecursionError) as error:
         parser.exit(1, f"bundle rejected: {error}\n")
     print(f"byte_integrity=verified scientific_evidence=false manifest_sha256={digest}")
