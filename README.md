@@ -59,9 +59,13 @@ outside the capture bundle. Archived surrogate arrays can also be replayed
 directly without regenerating source trajectories or null transformations:
 `verify_archived_surrogate_scores` validates the frozen job/index binding,
 decodes the retained binary64 arrays, recomputes the declared multiscale score
-and requires exact IEEE-754 bit equality with each archived score row. A
-successful replay is reproducibility/integrity evidence only; it does not
-recompute or authorize p-values, decisions or scientific claims. See
+and requires exact IEEE-754 bit equality with each archived score row.
+`replay_u2_statistics_from_scores` then provides a separate core primitive that
+revalidates the exact preregistered score ordering and independently recomputes
+the one-sided `+1` p-values and frozen U2 decision from those retained scores and
+an observed convergence score, without regenerating surrogate arrays. Neither
+primitive binds the replay to a stored pair-result artifact or authorizes a
+scientific claim; that end-to-end evidence boundary remains separate. See
 [input capture and bundles](docs/research/u2-input-capture.md).
 
 ```bash
