@@ -1,0 +1,40 @@
+name: Autopilot U2 compile fix one-shot
+
+on:
+  push:
+    branches:
+      - agent/u2-array-score-replay
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/u2-array-score-replay
+          fetch-depth: 0
+      - name: Remove invalid U2ExecutionPlan lifetime annotations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('examples/support/u2_surrogate_arrays.rs')
+          text = path.read_text()
+          old = "U2ExecutionPlan<'_>"
+          count = text.count(old)
+          if count != 2:
+              raise SystemExit(f'expected exactly 2 invalid annotations, found {count}')
+          path.write_text(text.replace(old, 'U2ExecutionPlan'))
+          PY
+          rm .github/workflows/autopilot-u2-compile-fix.yml
+          git config user.name 'ZEKRITI TAREK'
+          git config user.email 'contact@checkupauto.fr'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix(u2): remove invalid execution-plan lifetimes'
+          git push origin HEAD:agent/u2-array-score-replay
