@@ -22,6 +22,12 @@ analysis does not start. A complete array marker therefore means the declared
 surrogate bytes were written and synchronized; it is **not** a panel-completion
 or scientific-result marker.
 
+After analysis, the runner persists the exact per-job convergence scores. It then
+persists the six post-analysis pair rows only after the canonical score-only
+replay reproduces the stored p-values bit-for-bit and reproduces the frozen
+decision. These post-analysis files remain reproducibility evidence, not
+scientific acceptance.
+
 An invalid configuration never reaches the sink. A sink error becomes
 `StageU2PanelError::Capture` and stops execution before pair analysis. A source
 error follows the existing fail-closed generator behavior; capture is not called
@@ -48,6 +54,8 @@ old run. Use a stable trusted output directory, not an adversarial shared path.
 | `SURROGATE_ARRAYS_COMPLETE` | Every preregistered surrogate file and the index were written and synchronized; not completion of pair analysis |
 | `surrogate_scores.tsv` | Post-analysis convergence score for every successfully realized preregistered surrogate job, encoded as exact binary64 bits and bound to the frozen job identity |
 | `SURROGATE_SCORES_COMPLETE` | Successful score rows passed identity/count/finiteness checks and were synchronized; also records whether array capture is present |
+| `pair_results.tsv` | Six frozen pair rows with exact binary64 bits for observed distances, convergence and p-values plus the frozen decision or retained protocol error |
+| `PAIR_RESULTS_COMPLETE` | Pair identity/order and successful-row score replay agreed; records exact alpha bits and explicitly remains `scientific_evidence=false` |
 
 The four source binary files contain **post-burn-in extracted residuals, before
 multiscale normalization/coarse graining**. They are not full pre-burn-in states,
@@ -78,10 +86,10 @@ remain diagnostic material only.
 
 ## Direct replay from retained surrogate arrays
 
-`verify_archived_surrogate_scores` closes the replay boundary without regenerating
-source trajectories or null transformations. It consumes the retained array
-index, binary64 surrogate files and retained score table together with the frozen
-panel configuration.
+`verify_archived_surrogate_scores` verifies retained score computation without
+regenerating source trajectories or null transformations. It consumes the
+retained array index, binary64 surrogate files and retained score table together
+with the frozen panel configuration.
 
 The replay path fails closed unless:
 
@@ -100,14 +108,47 @@ The replay path fails closed unless:
   surrogate pair yields a convergence score with **exactly the same IEEE-754 bit
   pattern** as the archived score row.
 
-The verifier deliberately does not regenerate nulls, derive new p-values,
-reclassify U2 decisions or transform an archive into scientific evidence. Its
-return value is only the number of retained score rows whose exact replay was
+Its return value is only the number of retained score rows whose exact replay was
 verified. Byte-level replay tests use synthetic fixtures and are not U2 outcomes.
-
 This verifies reproducibility of the retained surrogate-score computation. It
 does not authenticate the bundle against an attacker who can replace all inputs,
 nor does it establish the scientific validity of the frozen protocol.
+
+## Replay of frozen p-values and decisions from retained scores
+
+`replay_u2_statistics_from_scores` is a separate core primitive. For one frozen
+pair, it first revalidates the complete preregistered job sequence, including
+pair/null/repetition/seed identity and finite score values. It then recomputes the
+one-sided empirical `+1` p-values
+`(1 + count(surrogate >= observed)) / (R + 1)` independently for both null
+families and reapplies the existing frozen `classify_stage_u2` decision rule.
+
+This replay does **not** regenerate surrogate arrays and does not authorize a new
+statistical rule. It is useful for checking that retained score evidence still
+maps to the same frozen p-values and decision. Successful replay remains an
+integrity result, not a scientific claim or permission to consume a protected
+holdout.
+
+## Replay-bound retention of pair results
+
+`capture_pair_results` binds the post-analysis six-pair rows to the retained
+score evidence before publishing them. It requires `SURROGATE_SCORES_COMPLETE`,
+requires the exact frozen pair order, and for each successful pair invokes
+`replay_u2_statistics_from_scores`. The retained `p_shuffle` and `p_phase` must
+match the replayed binary64 bits exactly and the retained decision must be
+identical. Successful rows also require finite observed distances/convergence.
+
+Protocol-failure rows are preserved explicitly. They may not contain p-values,
+a decision or partial surrogate-score evidence. The exporter writes
+`PAIR_RESULTS_COMPLETE` only after all six rows satisfy these rules. A failed
+export may leave a partial `pair_results.tsv` as diagnostic material, but never a
+completion marker.
+
+The current capture path writes `pair_results.tsv`; direct parsing/replay of that
+persisted TSV back into a typed pair-result object is still a separate boundary.
+Likewise, capture does not authenticate the bundle against replacement of both
+data and manifest and does not turn exploratory U2 output into scientific
+acceptance.
 
 ## Non-scientific smoke example
 
@@ -129,9 +170,9 @@ python3 scripts/evidence_bundle.py verify "$bundle"
 ```
 
 The full workload remains separately explicit under the frozen U2 protocol. A
-snapshot, array export, score export, replay verification or checksum does not by
-itself become a scientific verdict. No full scientific campaign is run merely by
-this reproducibility surface.
+snapshot, array export, score export, score/statistics replay, pair-result export
+or checksum does not by itself become a scientific verdict. No full scientific
+campaign is run merely by this reproducibility surface.
 
 ## Byte-integrity sealing
 
@@ -160,25 +201,31 @@ inputs/jobs. Score-export regressions reject a tampered preregistered seed.
 Surrogate-array regressions require deterministic materialization, exact
 row/byte accounting and manifest binding.
 
-The archived-array replay regressions additionally require a complete retained
-smoke score set to reproduce every convergence-score bit directly from disk,
-reject a modified stored score bit and reject non-finite tampering in a retained
-surrogate payload. These fixtures are synthetic and explicitly non-scientific.
+The archived-array replay regressions require a complete retained smoke score set
+to reproduce every convergence-score bit directly from disk, reject a modified
+stored score bit and reject non-finite tampering in a retained surrogate payload.
+Score-statistics replay regressions check exact `+1` p-values, the decision
+boundary and malformed/reordered/non-finite score evidence. Pair-result capture
+regressions require successful rows to match that replay exactly and reject a
+one-bit p-value mutation. These fixtures are synthetic and explicitly
+non-scientific.
 
 The `Research report smoke contracts` workflow retains source/protocol copies,
-resolved dependency information, toolchain/host identity, executable hashes,
-reports and diagnostics, then seals the artifact tree. Those checks concern
-execution and integrity, not a positive universality label. GitHub artifact
-retention is finite; durable scientific evidence requires separate archival
-policy and independent digest retention.
+including the pair-result exporter, resolved dependency information,
+toolchain/host identity, executable hashes, reports and diagnostics, then seals
+the artifact tree. The smoke capture requires `PAIR_RESULTS_COMPLETE` and exactly
+six retained pair rows. Those checks concern execution and integrity, not a
+positive universality label. GitHub artifact retention is finite; durable
+scientific evidence requires separate archival policy and independent digest
+retention.
 
 ## Deliberate next boundaries
 
 A complete future scientific dossier still needs an approved full-load run,
 reviewed six-pair outcomes, retained source-generation failures where applicable
-and durable archival outside transient CI storage. Direct archived-surrogate
-score replay is now an integrity capability, but it is intentionally not a new
-scientific decision path. Any future replay of p-values or panel decisions must
-preserve the frozen decision semantics and remain separately reviewed rather
-than being inferred from successful score replay. U0/U1 results and the
-exploratory U2 multiplicity policy remain unchanged.
+and durable archival outside transient CI storage. Array replay, score replay,
+frozen-statistics replay and replay-bound pair-result retention are integrity
+capabilities; none is a new scientific decision path. Direct typed replay from
+the persisted pair-result artifact and any eventual dossier acceptance remain
+separately reviewable boundaries. U0/U1 results and the exploratory U2
+multiplicity policy remain unchanged.
