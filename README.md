@@ -48,11 +48,17 @@ universality or FHN robustness. See [report automation](docs/REPORT_AUTOMATION.m
 
 U2 can additionally retain the exact post-burn-in residual arrays before pair
 analysis through `NOISELAB_U2_CAPTURE_DIR`: lossless binary64 inputs, extraction
-provenance, descriptors and surrogate job identities. The CI repeats and compares
-these snapshots, checks no-overwrite behavior and seals the combined U2/FHN
-artifact directory with a SHA-256 manifest. Integrity is not authentication or a
-scientific verdict; full pre-extraction trajectories and realized surrogate
-arrays are not yet captured. See [input capture and bundles](docs/research/u2-input-capture.md).
+provenance, descriptors, the preregistered surrogate job manifest, every realized
+surrogate array and every retained surrogate score. Array files bind exact
+pair/null/repetition/seed identities and are persisted before pair analysis;
+score export revalidates those frozen job identities after analysis. The CI
+repeats and compares these snapshots, checks no-overwrite behavior and seals the
+combined U2/FHN artifact directory with a SHA-256 manifest. Integrity is not
+authentication or a scientific verdict; full pre-extraction trajectories remain
+outside the capture bundle. Direct replay from retained on-disk surrogate arrays
+without regenerating source trajectories or null transformations remains a
+separate reproducibility increment. See
+[input capture and bundles](docs/research/u2-input-capture.md).
 
 ```bash
 cargo build --examples
