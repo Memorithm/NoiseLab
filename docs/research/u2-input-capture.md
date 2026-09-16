@@ -163,13 +163,33 @@ the p-value/decision fields remain absent. Their observed fields may retain the
 non-finite diagnostic values produced by the failed execution; those values are
 not interpreted as successful statistics.
 
-This typed replay deliberately does **not** reread `surrogate_scores.tsv` or
-reconstruct p-values from disk. The score-to-pair binding was enforced before
-pair-result publication by `capture_pair_results`; independent disk-to-disk
-verification of the pair-result artifact against the retained score table would
-be a stronger, separately reviewable integrity boundary. Typed replay is not a
-scientific verdict, bundle authentication or permission to consume a protected
-holdout.
+Typed replay alone does not reread `surrogate_scores.tsv`; it verifies the
+self-consistency of the pair-result artifact and classifier boundary.
+
+## Disk-to-disk score-to-pair binding
+
+`verify_archived_pair_results_against_scores` closes the next integrity boundary
+without re-running the experiment. It first performs typed pair-result replay,
+then independently parses the retained `surrogate_scores.tsv` and its completion
+marker from disk under the frozen execution plan.
+
+The score archive must remain in canonical nondecreasing pair order. Every row
+must bind to the exact frozen pair/null/repetition/seed job and contain a finite
+binary64 score. A successful pair must retain the complete shuffled-then-phase
+dual-null score sequence expected by `replay_u2_statistics_from_scores`; a
+protocol-failure pair must retain **zero** scores. Partial successful-pair score
+sets, invalid jobs, seed drift, reordered pair groups and completion row-count
+drift fail closed.
+
+For each successful pair, the frozen score replay recomputes both p-values from
+the on-disk score rows and requires exact IEEE-754 bit equality with the p-values
+in `pair_results.tsv`; the decision must also match exactly. This verifies the
+persisted score-to-pair derivation independently of capture-time binding.
+
+This still is not authentication against wholesale replacement of a bundle and
+manifest, does not prove the upstream null mechanism, does not open a protected
+holdout, and does not turn U2 into a positive scientific result. It is an
+integrity/reproducibility check only.
 
 ## Non-scientific smoke example
 
@@ -192,9 +212,9 @@ python3 scripts/evidence_bundle.py verify "$bundle"
 
 The full workload remains separately explicit under the frozen U2 protocol. A
 snapshot, array export, score export, score/statistics replay, pair-result export,
-typed pair-result replay or checksum does not by itself become a scientific
-verdict. No full scientific campaign is run merely by this reproducibility
-surface.
+typed pair-result replay, disk-to-disk score binding or checksum does not by
+itself become a scientific verdict. No full scientific campaign is run merely by
+this reproducibility surface.
 
 ## Byte-integrity sealing
 
@@ -231,26 +251,28 @@ boundary and malformed/reordered/non-finite score evidence. Pair-result capture
 regressions require successful rows to match that replay exactly and reject a
 one-bit p-value mutation or an ambiguous empty protocol error. Typed pair-result
 replay regressions verify exact parsing, classifier agreement, alpha-marker
-binding and protocol-failure preservation. These fixtures are synthetic and
-explicitly non-scientific.
+binding and protocol-failure preservation. Disk-to-disk binding regressions also
+require the archived score rows to reproduce the persisted p-values and decision,
+reject score drift and reject retained scores attached to a protocol-failure
+pair. These fixtures are synthetic and explicitly non-scientific.
 
 The `Research report smoke contracts` workflow retains source/protocol copies,
-including the pair-result exporter, resolved dependency information,
-toolchain/host identity, executable hashes, reports and diagnostics, then seals
-the artifact tree. The smoke capture requires `PAIR_RESULTS_COMPLETE` and exactly
-six retained pair rows. Those checks concern execution and integrity, not a
-positive universality label. GitHub artifact retention is finite; durable
-scientific evidence requires separate archival policy and independent digest
-retention.
+including the pair-result exporter and pair-result replay verifier, resolved
+dependency information, toolchain/host identity, executable hashes, reports and
+diagnostics, then seals the artifact tree. The smoke capture requires
+`PAIR_RESULTS_COMPLETE` and exactly six retained pair rows. Those checks concern
+execution and integrity, not a positive universality label. GitHub artifact
+retention is finite; durable scientific evidence requires separate archival
+policy and independent digest retention.
 
 ## Deliberate next boundaries
 
 A complete future scientific dossier still needs an approved full-load run,
 reviewed six-pair outcomes, retained source-generation failures where applicable
 and durable archival outside transient CI storage. Array replay, score replay,
-frozen-statistics replay, replay-bound pair-result retention and typed pair-result
-replay are integrity capabilities; none is a new scientific decision path.
-Independent disk-to-disk verification from retained surrogate scores through the
-persisted pair-result artifact, and any eventual dossier acceptance, remain
-separately reviewable boundaries. U0/U1 results and the exploratory U2
+frozen-statistics replay, replay-bound pair-result retention, typed pair-result
+replay and disk-to-disk score binding are integrity capabilities; none is a new
+scientific decision path. Independent authentication/attestation of retained
+bundle identities, durable evidence policy and any eventual dossier acceptance
+remain separately reviewable boundaries. U0/U1 results and the exploratory U2
 multiplicity policy remain unchanged.
