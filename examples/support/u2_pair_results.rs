@@ -17,14 +17,15 @@ use std::path::Path;
 /// pair rows are replayed from the in-memory score evidence using the frozen
 /// `+1` p-value rule and decision function. The capture rejects any bit-level
 /// p-value drift or decision mismatch before publishing `PAIR_RESULTS_COMPLETE`.
-/// Protocol-failure rows are preserved without fabricating p-values or decisions.
+/// Protocol-failure rows are preserved without fabricating p-values or decisions;
+/// their error text must be non-empty so a retained row cannot become ambiguous.
 ///
 /// # Errors
 ///
 /// Returns `InvalidData` when pair identity/order drifts, score evidence has not
 /// been retained first, a successful row contains non-finite or incomplete
 /// values, replay disagrees with the analysis fields, or a protocol-failure row
-/// contains a partial statistical result.
+/// has empty error text or contains a partial statistical result.
 pub fn capture_pair_results(
     destination: &Path,
     config: &StageU2PanelConfig,
@@ -60,7 +61,10 @@ pub fn capture_pair_results(
             return Err(invalid_data("U2 pair-result identity mismatch"));
         }
 
-        let (p_shuffle_bits, p_phase_bits, decision) = if pair.protocol_error.is_some() {
+        let (p_shuffle_bits, p_phase_bits, decision) = if let Some(error) = &pair.protocol_error {
+            if error.is_empty() {
+                return Err(invalid_data("protocol-failed U2 pair has empty error text"));
+            }
             if pair.p_shuffle.is_some()
                 || pair.p_phase.is_some()
                 || pair.decision.is_some()
