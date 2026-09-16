@@ -55,9 +55,13 @@ score export revalidates those frozen job identities after analysis. The CI
 repeats and compares these snapshots, checks no-overwrite behavior and seals the
 combined U2/FHN artifact directory with a SHA-256 manifest. Integrity is not
 authentication or a scientific verdict; full pre-extraction trajectories remain
-outside the capture bundle. Direct replay from retained on-disk surrogate arrays
-without regenerating source trajectories or null transformations remains a
-separate reproducibility increment. See
+outside the capture bundle. Archived surrogate arrays can also be replayed
+directly without regenerating source trajectories or null transformations:
+`verify_archived_surrogate_scores` validates the frozen job/index binding,
+decodes the retained binary64 arrays, recomputes the declared multiscale score
+and requires exact IEEE-754 bit equality with each archived score row. A
+successful replay is reproducibility/integrity evidence only; it does not
+recompute or authorize p-values, decisions or scientific claims. See
 [input capture and bundles](docs/research/u2-input-capture.md).
 
 ```bash
