@@ -23,5 +23,12 @@ any frozen source parameter, seed, scale, alpha or surrogate count, and does not
 support a universality, resonance, common-mechanism or cosmological-origin claim.
 The synthetic replay regressions are software fixtures, not scientific data.
 
+The capture and replay helpers are shared support modules. Targets that
+intentionally include one of those modules without invoking every helper scope a
+`dead_code` allowance to that module import only; Clippy remains strict when the
+same helper is compiled through the replay regressions. This avoids weakening
+repository-wide lint gates merely because support code is reused by several
+independent executable/test targets.
+
 The broader capture format, retention policy and integrity limitations are
 documented in [`u2-input-capture.md`](u2-input-capture.md).
