@@ -29,6 +29,7 @@ pub mod u2_manifest;
 pub mod u2_plan;
 pub mod u2_readiness;
 pub mod u2_replay;
+pub mod u2_score_replay;
 pub mod u2_sources;
 pub mod u2_surrogate_realization;
 pub mod universality;
@@ -107,6 +108,9 @@ pub use u2_readiness::{
     U2_SOURCE_FAMILIES, U2_UNORDERED_PAIRS,
 };
 pub use u2_replay::{replay_stage_u2_captured_inputs, StageU2ReplayError, StageU2ReplayResult};
+pub use u2_score_replay::{
+    replay_u2_statistics_from_scores, ReplayedU2Statistics, U2ScoreReplayError,
+};
 pub use u2_surrogate_realization::{
     materialize_u2_surrogate_pair, U2SurrogateRealization, U2SurrogateRealizationError,
 };
