@@ -60,7 +60,7 @@ pub fn capture_pair_results(
             return Err(invalid_data("U2 pair-result identity mismatch"));
         }
 
-        let (p_shuffle_bits, p_phase_bits, decision) = if let Some(error) = &pair.protocol_error {
+        let (p_shuffle_bits, p_phase_bits, decision) = if pair.protocol_error.is_some() {
             if pair.p_shuffle.is_some()
                 || pair.p_phase.is_some()
                 || pair.decision.is_some()
