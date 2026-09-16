@@ -2,13 +2,14 @@
 //!
 //! This verifier parses `pair_results.tsv` and its completion marker, validates
 //! the frozen six-pair identity/order and exact binary64 encodings, and reapplies
-//! the frozen decision function. It does not re-read surrogate-score evidence;
-//! score-to-pair binding remains the responsibility of capture-time replay and
-//! byte-integrity sealing.
+//! the frozen decision function. A stronger replay path also re-reads the
+//! retained `surrogate_scores.tsv` archive and requires every successful pair
+//! result to reproduce the frozen p-values and decision directly from those
+//! on-disk score rows.
 
 use noiselab::u2_decision::{classify_stage_u2, StageU2Decision};
-use noiselab::u2_plan::U2_FROZEN_PAIRS;
-use noiselab::StageU2PanelConfig;
+use noiselab::u2_plan::{U2ExecutionPlan, U2NullFamily, U2_FROZEN_PAIRS};
+use noiselab::{replay_u2_statistics_from_scores, StageU2PanelConfig, U2SurrogateScore};
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -83,6 +84,155 @@ pub fn verify_archived_pair_results(
         return Err(invalid_data("U2 pair-result completion counts mismatch"));
     }
     Ok(rows)
+}
+
+/// Re-read retained pair results and bind every successful row to the retained
+/// surrogate-score archive on disk.
+///
+/// This first performs [`verify_archived_pair_results`], then parses
+/// `surrogate_scores.tsv` under the frozen execution plan. Successful pairs must
+/// have the complete canonical dual-null score sequence; protocol-failure pairs
+/// must have no retained scores. The frozen score-only replay must reproduce the
+/// archived pair-result p-values bit-for-bit and the archived decision exactly.
+///
+/// This is stronger disk-to-disk integrity evidence than capture-time binding,
+/// but it still does not authenticate wholesale bundle replacement, revalidate
+/// how surrogate scores were produced, open a protected holdout or grant a
+/// scientific verdict.
+///
+/// # Errors
+///
+/// Returns `InvalidData` for malformed or reordered score archives, incomplete
+/// successful-pair score sets, retained scores for a protocol-failure pair, or
+/// any p-value/decision disagreement between the score archive and pair results.
+pub fn verify_archived_pair_results_against_scores(
+    destination: &Path,
+    config: &StageU2PanelConfig,
+) -> io::Result<Vec<ArchivedU2PairResult>> {
+    let rows = verify_archived_pair_results(destination, config)?;
+    let plan = U2ExecutionPlan {
+        pairs: &U2_FROZEN_PAIRS,
+        surrogates_per_null: config.mode.surrogates_per_null(),
+        seed_root: config.surrogate_seed_root,
+    };
+    let scores = read_archived_scores(destination, plan)?;
+
+    for row in &rows {
+        let pair_scores = &scores[row.pair_index];
+        if row.protocol_error.is_some() {
+            if !pair_scores.is_empty() {
+                return Err(invalid_data(
+                    "protocol-failed U2 pair retains surrogate scores",
+                ));
+            }
+            continue;
+        }
+
+        let replay = replay_u2_statistics_from_scores(
+            plan,
+            row.pair_index,
+            row.convergence_score,
+            config.alpha,
+            pair_scores,
+        )
+        .map_err(|_| invalid_data("archived U2 score-to-pair replay failed"))?;
+
+        if row.p_shuffle.map(f64::to_bits) != Some(replay.p_shuffle.to_bits())
+            || row.p_phase.map(f64::to_bits) != Some(replay.p_phase.to_bits())
+            || row.decision != Some(replay.decision)
+        {
+            return Err(invalid_data(
+                "archived U2 pair result does not match retained scores",
+            ));
+        }
+    }
+
+    Ok(rows)
+}
+
+fn read_archived_scores(
+    destination: &Path,
+    plan: U2ExecutionPlan,
+) -> io::Result<Vec<Vec<U2SurrogateScore>>> {
+    let marker = fs::read_to_string(destination.join("SURROGATE_SCORES_COMPLETE"))?;
+    if marker_value(&marker, "surrogate_score_export_complete") != Some("true")
+        || marker_value(&marker, "scientific_evidence") != Some("false")
+    {
+        return Err(invalid_data("invalid U2 surrogate-score completion marker"));
+    }
+
+    let contents = fs::read_to_string(destination.join("surrogate_scores.tsv"))?;
+    let mut lines = contents.lines();
+    if lines.next()
+        != Some(
+            "pair_index\tleft\tright\tnull_family\trepetition\tseed\tconvergence_score_bits",
+        )
+    {
+        return Err(invalid_data("invalid U2 surrogate-score header"));
+    }
+
+    let mut grouped = (0..U2_FROZEN_PAIRS.len())
+        .map(|_| Vec::new())
+        .collect::<Vec<Vec<U2SurrogateScore>>>();
+    let mut total_rows = 0usize;
+    let mut previous_pair_index = None;
+    for line in lines {
+        let fields = line.split('\t').collect::<Vec<_>>();
+        if fields.len() != 7 {
+            return Err(invalid_data("invalid U2 surrogate-score row"));
+        }
+
+        let pair_index = parse_usize(fields[0], "invalid U2 score pair index")?;
+        if previous_pair_index.is_some_and(|previous| pair_index < previous) {
+            return Err(invalid_data("reordered U2 surrogate-score pair groups"));
+        }
+        previous_pair_index = Some(pair_index);
+
+        let null_family = parse_null_family(fields[3])?;
+        let repetition = parse_usize(fields[4], "invalid U2 score repetition")?;
+        let seed = parse_u64(fields[5], "invalid U2 score seed")?;
+        let score_bits = u64::from_str_radix(fields[6], 16)
+            .map_err(|_| invalid_data("invalid U2 convergence-score bits"))?;
+        let convergence_score = f64::from_bits(score_bits);
+        if !convergence_score.is_finite() {
+            return Err(invalid_data("non-finite archived U2 convergence score"));
+        }
+
+        let expected_job = plan
+            .surrogate_job(pair_index, null_family, repetition)
+            .ok_or(invalid_data("U2 archived score references an invalid job"))?;
+        if fields[1] != format!("{:?}", expected_job.pair.left)
+            || fields[2] != format!("{:?}", expected_job.pair.right)
+            || seed != expected_job.seed
+        {
+            return Err(invalid_data("U2 archived score identity mismatch"));
+        }
+
+        grouped[pair_index].push(U2SurrogateScore {
+            job: expected_job,
+            convergence_score,
+        });
+        total_rows = total_rows
+            .checked_add(1)
+            .ok_or(invalid_data("U2 surrogate-score row-count overflow"))?;
+    }
+
+    if marker_usize(&marker, "rows")? != total_rows {
+        return Err(invalid_data("U2 surrogate-score completion count mismatch"));
+    }
+
+    let expected_per_pair = plan
+        .surrogates_per_null
+        .checked_mul(2)
+        .ok_or(invalid_data("U2 score replay count overflow"))?;
+    if grouped
+        .iter()
+        .any(|pair_scores| !pair_scores.is_empty() && pair_scores.len() != expected_per_pair)
+    {
+        return Err(invalid_data("partial successful-pair U2 score archive"));
+    }
+
+    Ok(grouped)
 }
 
 fn validate_marker(marker: &str, config: &StageU2PanelConfig) -> io::Result<()> {
@@ -173,6 +323,14 @@ fn parse_row(
     })
 }
 
+fn parse_null_family(value: &str) -> io::Result<U2NullFamily> {
+    match value {
+        "ShuffledMarginal" => Ok(U2NullFamily::ShuffledMarginal),
+        "PhaseRandomizedSpectrum" => Ok(U2NullFamily::PhaseRandomizedSpectrum),
+        _ => Err(invalid_data("invalid U2 archived null family")),
+    }
+}
+
 fn parse_decision(value: &str) -> io::Result<StageU2Decision> {
     match value {
         "NoObservedConvergence" => Ok(StageU2Decision::NoObservedConvergence),
@@ -212,6 +370,10 @@ fn marker_usize(marker: &str, key: &str) -> io::Result<usize> {
 
 fn parse_usize(value: &str, message: &'static str) -> io::Result<usize> {
     value.parse::<usize>().map_err(|_| invalid_data(message))
+}
+
+fn parse_u64(value: &str, message: &'static str) -> io::Result<u64> {
+    value.parse::<u64>().map_err(|_| invalid_data(message))
 }
 
 fn invalid_data(message: &'static str) -> io::Error {
