@@ -65,6 +65,10 @@ pub fn capture_inputs(
         metadata,
         "post_analysis_scores\tsurrogate_scores.tsv when panel analysis completes"
     )?;
+    writeln!(
+        metadata,
+        "post_analysis_pair_results\tpair_results.tsv when panel analysis completes"
+    )?;
     finish(metadata)?;
 
     let mut sources = new_file(destination, "sources.tsv")?;
@@ -240,6 +244,119 @@ pub fn capture_surrogate_scores(
     writeln!(marker, "rows={exported}")?;
     writeln!(marker, "scientific_evidence=false")?;
     writeln!(marker, "surrogate_arrays_persisted={arrays_persisted}")?;
+    finish(marker)
+}
+
+/// Persist the complete Stage U2 pair-result matrix after analysis.
+///
+/// Numerical values are written as exact IEEE-754 bit patterns. Successful
+/// rows must contain a complete dual-null score set and all replayable fields;
+/// protocol-failure rows must retain the canonical failed shape. The artifact
+/// records outcomes exactly but does not authenticate them or turn either smoke
+/// or scientific-load execution into a scientific verdict.
+pub fn capture_pair_results(
+    destination: &Path,
+    config: &StageU2PanelConfig,
+    pairs: &[StageU2PairAnalysis],
+) -> io::Result<()> {
+    if pairs.len() != U2_FROZEN_PAIRS.len() {
+        return Err(invalid_data(
+            "U2 pair-result export does not contain all frozen pairs",
+        ));
+    }
+    let expected_scores = config
+        .mode
+        .surrogates_per_null()
+        .checked_mul(2)
+        .ok_or(invalid_data("U2 pair-result score count overflow"))?;
+
+    let mut output = new_file(destination, "pair_results.tsv")?;
+    writeln!(
+        output,
+        "pair_index\tleft\tright\tfine_distance_bits\tterminal_distance_bits\tconvergence_score_bits\tp_shuffle_bits\tp_phase_bits\tdecision\tprotocol_error"
+    )?;
+    let mut successful = 0usize;
+    let mut failed = 0usize;
+
+    for (expected_pair_index, pair) in pairs.iter().enumerate() {
+        if pair.pair_index != expected_pair_index
+            || pair.pair != U2_FROZEN_PAIRS[expected_pair_index]
+        {
+            return Err(invalid_data("U2 pair-result identity mismatch"));
+        }
+
+        let (p_shuffle, p_phase, decision, protocol_error) = match &pair.protocol_error {
+            Some(error) => {
+                if !pair.fine_scale_distance.is_nan()
+                    || !pair.terminal_scale_distance.is_nan()
+                    || !pair.convergence_score.is_nan()
+                    || pair.p_shuffle.is_some()
+                    || pair.p_phase.is_some()
+                    || pair.decision.is_some()
+                    || !pair.surrogate_scores.is_empty()
+                {
+                    return Err(invalid_data("noncanonical U2 protocol-failure result"));
+                }
+                failed = failed
+                    .checked_add(1)
+                    .ok_or(invalid_data("U2 pair-result failure count overflow"))?;
+                (String::new(), String::new(), String::new(), clean(error))
+            }
+            None => {
+                let p_shuffle = pair
+                    .p_shuffle
+                    .filter(|value| value.is_finite() && (0.0..=1.0).contains(value))
+                    .ok_or(invalid_data("successful U2 pair has invalid shuffle p-value"))?;
+                let p_phase = pair
+                    .p_phase
+                    .filter(|value| value.is_finite() && (0.0..=1.0).contains(value))
+                    .ok_or(invalid_data("successful U2 pair has invalid phase p-value"))?;
+                let decision = pair
+                    .decision
+                    .ok_or(invalid_data("successful U2 pair is missing a decision"))?;
+                if !pair.fine_scale_distance.is_finite()
+                    || !pair.terminal_scale_distance.is_finite()
+                    || !pair.convergence_score.is_finite()
+                    || pair.surrogate_scores.len() != expected_scores
+                {
+                    return Err(invalid_data("invalid successful U2 pair-result shape"));
+                }
+                successful = successful
+                    .checked_add(1)
+                    .ok_or(invalid_data("U2 pair-result success count overflow"))?;
+                (
+                    format!("{:016x}", p_shuffle.to_bits()),
+                    format!("{:016x}", p_phase.to_bits()),
+                    format!("{decision:?}"),
+                    String::new(),
+                )
+            }
+        };
+
+        writeln!(
+            output,
+            "{}\t{:?}\t{:?}\t{:016x}\t{:016x}\t{:016x}\t{}\t{}\t{}\t{}",
+            pair.pair_index,
+            pair.pair.left,
+            pair.pair.right,
+            pair.fine_scale_distance.to_bits(),
+            pair.terminal_scale_distance.to_bits(),
+            pair.convergence_score.to_bits(),
+            p_shuffle,
+            p_phase,
+            decision,
+            protocol_error
+        )?;
+    }
+    finish(output)?;
+
+    let mut marker = new_file(destination, "PAIR_RESULTS_COMPLETE")?;
+    writeln!(marker, "pair_result_export_complete=true")?;
+    writeln!(marker, "rows={}", pairs.len())?;
+    writeln!(marker, "successful_rows={successful}")?;
+    writeln!(marker, "protocol_failure_rows={failed}")?;
+    writeln!(marker, "alpha_bits={:016x}", config.alpha.to_bits())?;
+    writeln!(marker, "scientific_evidence=false")?;
     finish(marker)
 }
 
