@@ -126,9 +126,7 @@ fn write_score_archive(path: &std::path::Path, pairs: &[StageU2PairAnalysis]) {
     fs::write(path.join("surrogate_scores.tsv"), contents).unwrap();
     fs::write(
         path.join("SURROGATE_SCORES_COMPLETE"),
-        format!(
-            "surrogate_score_export_complete=true\nrows={rows}\nscientific_evidence=false\n"
-        ),
+        format!("surrogate_score_export_complete=true\nrows={rows}\nscientific_evidence=false\n"),
     )
     .unwrap();
 }
@@ -160,11 +158,9 @@ fn archived_pair_results_bind_to_archived_scores() {
     let config = StageU2PanelConfig::non_scientific_smoke();
     let directory = fixture(&config);
 
-    let rows = u2_pair_result_replay::verify_archived_pair_results_against_scores(
-        &directory.0,
-        &config,
-    )
-    .unwrap();
+    let rows =
+        u2_pair_result_replay::verify_archived_pair_results_against_scores(&directory.0, &config)
+            .unwrap();
 
     assert_eq!(rows.len(), U2_FROZEN_PAIRS.len());
     assert!(rows.iter().all(|row| row.protocol_error.is_none()));
@@ -182,11 +178,9 @@ fn archived_score_drift_breaks_pair_result_binding() {
     lines[1] = fields.join("\t");
     fs::write(&path, format!("{}\n", lines.join("\n"))).unwrap();
 
-    let error = u2_pair_result_replay::verify_archived_pair_results_against_scores(
-        &directory.0,
-        &config,
-    )
-    .unwrap_err();
+    let error =
+        u2_pair_result_replay::verify_archived_pair_results_against_scores(&directory.0, &config)
+            .unwrap_err();
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
 }
 
@@ -240,11 +234,9 @@ fn protocol_failure_row_replays_without_fabricated_statistics() {
     write_score_archive(&directory.0, &pairs);
     u2_pair_results::capture_pair_results(&directory.0, &config, &pairs).unwrap();
 
-    let rows = u2_pair_result_replay::verify_archived_pair_results_against_scores(
-        &directory.0,
-        &config,
-    )
-    .unwrap();
+    let rows =
+        u2_pair_result_replay::verify_archived_pair_results_against_scores(&directory.0, &config)
+            .unwrap();
     assert_eq!(
         rows[0].protocol_error.as_deref(),
         Some("synthetic protocol failure")
@@ -271,11 +263,9 @@ fn protocol_failure_with_retained_scores_is_rejected_by_disk_binding() {
     write_score_archive(&directory.0, &original_pairs);
     u2_pair_results::capture_pair_results(&directory.0, &config, &captured_pairs).unwrap();
 
-    let error = u2_pair_result_replay::verify_archived_pair_results_against_scores(
-        &directory.0,
-        &config,
-    )
-    .unwrap_err();
+    let error =
+        u2_pair_result_replay::verify_archived_pair_results_against_scores(&directory.0, &config)
+            .unwrap_err();
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
 }
 
