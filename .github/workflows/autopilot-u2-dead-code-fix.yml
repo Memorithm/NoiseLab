@@ -1,0 +1,61 @@
+name: Autopilot U2 support dead-code fix one-shot
+
+on:
+  push:
+    branches:
+      - agent/u2-array-score-replay
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/u2-array-score-replay
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+          components: rustfmt
+      - name: Scope support-module dead-code allowances
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          edits = [
+              (
+                  Path('examples/fluctuation_u2_report.rs'),
+                  '#[path = "support/u2_surrogate_arrays.rs"]\nmod u2_surrogate_arrays;',
+                  '#[allow(dead_code)]\n#[path = "support/u2_surrogate_arrays.rs"]\nmod u2_surrogate_arrays;',
+              ),
+              (
+                  Path('tests/u2_capture.rs'),
+                  '#[path = "../examples/support/u2_surrogate_arrays.rs"]\nmod u2_surrogate_arrays;',
+                  '#[allow(dead_code)]\n#[path = "../examples/support/u2_surrogate_arrays.rs"]\nmod u2_surrogate_arrays;',
+              ),
+              (
+                  Path('tests/u2_surrogate_array_replay.rs'),
+                  '#[path = "../examples/support/u2_capture.rs"]\nmod u2_capture;',
+                  '#[allow(dead_code)]\n#[path = "../examples/support/u2_capture.rs"]\nmod u2_capture;',
+              ),
+          ]
+          for path, old, new in edits:
+              text = path.read_text()
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected one target, found {text.count(old)}')
+              path.write_text(text.replace(old, new))
+          PY
+          cargo fmt --all
+          rm .github/workflows/autopilot-u2-dead-code-fix.yml
+          git config user.name 'ZEKRITI TAREK'
+          git config user.email 'contact@checkupauto.fr'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix(u2): scope support-module dead-code allowances'
+          git push origin HEAD:agent/u2-array-score-replay
