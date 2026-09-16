@@ -2,6 +2,7 @@
 
 #[path = "../examples/support/u2_capture.rs"]
 mod u2_capture;
+#[allow(dead_code)]
 #[path = "../examples/support/u2_surrogate_arrays.rs"]
 mod u2_surrogate_arrays;
 
