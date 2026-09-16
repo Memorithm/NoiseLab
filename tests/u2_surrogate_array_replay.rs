@@ -62,7 +62,13 @@ fn fixtures() -> [U2ResidualSeries; 4] {
     })
 }
 
-fn fixture_bundle(root: &Path) -> (StageU2PanelConfig, Vec<U2SurrogateJob>, Vec<StageU2PairAnalysis>) {
+fn fixture_bundle(
+    root: &Path,
+) -> (
+    StageU2PanelConfig,
+    Vec<U2SurrogateJob>,
+    Vec<StageU2PairAnalysis>,
+) {
     let mut config = StageU2PanelConfig::non_scientific_smoke();
     config.scales = vec![1, 2, 4, 8];
     let residuals = fixtures();
@@ -103,8 +109,7 @@ fn archived_arrays_reproduce_every_retained_score_bit() {
     let bundle = directory.0.join("valid");
     let (config, jobs, _) = fixture_bundle(&bundle);
 
-    let verified =
-        u2_surrogate_arrays::verify_archived_surrogate_scores(&bundle, &config).unwrap();
+    let verified = u2_surrogate_arrays::verify_archived_surrogate_scores(&bundle, &config).unwrap();
     assert_eq!(verified, jobs.len());
 }
 

@@ -189,7 +189,9 @@ fn read_array_index(
         rows.push(parse_array_row(line, *expected_job)?);
     }
     if lines.next().is_some() {
-        return Err(invalid_data("unexpected extra U2 surrogate-array index row"));
+        return Err(invalid_data(
+            "unexpected extra U2 surrogate-array index row",
+        ));
     }
     Ok(rows)
 }
@@ -239,9 +241,7 @@ fn replay_score_file(
     let contents = fs::read_to_string(destination.join("surrogate_scores.tsv"))?;
     let mut lines = contents.lines();
     if lines.next()
-        != Some(
-            "pair_index\tleft\tright\tnull_family\trepetition\tseed\tconvergence_score_bits",
-        )
+        != Some("pair_index\tleft\tright\tnull_family\trepetition\tseed\tconvergence_score_bits")
     {
         return Err(invalid_data("invalid U2 surrogate-score header"));
     }
