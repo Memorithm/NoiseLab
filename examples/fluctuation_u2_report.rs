@@ -7,10 +7,13 @@
 //! Smoke output is not scientific evidence and must not be recorded as U2
 //! results. The full-load selector does not itself validate a scientific claim.
 //! Set `NOISELAB_U2_CAPTURE_DIR` to a new directory to persist the exact inputs,
-//! realized surrogate arrays and, after analysis, per-surrogate convergence scores.
+//! realized surrogate arrays, per-surrogate convergence scores and replay-bound
+//! post-analysis pair results.
 
 #[path = "support/u2_capture.rs"]
 mod u2_capture;
+#[path = "support/u2_pair_results.rs"]
+mod u2_pair_results;
 #[allow(dead_code)]
 #[path = "support/u2_surrogate_arrays.rs"]
 mod u2_surrogate_arrays;
@@ -59,6 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     })?;
     if let Some(path) = &capture_dir {
         u2_capture::capture_surrogate_scores(path, &config, &result.pairs)?;
+        u2_pair_results::capture_pair_results(path, &config, &result.pairs)?;
     }
 
     println!("# report_schema\t1");
