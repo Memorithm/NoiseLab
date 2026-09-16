@@ -29,6 +29,26 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(digest, bundle.verify(self.root))
         self.assertEqual(digest, bundle.verify(self.root))
 
+    def test_trusted_expected_digest_accepts_exact_manifest(self):
+        digest = bundle.seal(self.root)
+        self.assertEqual(digest, bundle.verify(self.root, digest))
+
+    def test_trusted_expected_digest_rejects_wholesale_reseal(self):
+        trusted_digest = bundle.seal(self.root)
+        (self.root / bundle.MANIFEST).unlink()
+        (self.root / "report.tsv").write_text("wholesale replacement\n")
+        replacement_digest = bundle.seal(self.root)
+        self.assertNotEqual(trusted_digest, replacement_digest)
+        self.assertEqual(replacement_digest, bundle.verify(self.root, replacement_digest))
+        with self.assertRaises(bundle.BundleError):
+            bundle.verify(self.root, trusted_digest)
+
+    def test_expected_digest_must_be_canonical_lowercase_sha256(self):
+        bundle.seal(self.root)
+        for digest in ("a" * 63, "A" * 64, "g" * 64, "a" * 65):
+            with self.subTest(digest=digest), self.assertRaises(bundle.BundleError):
+                bundle.verify(self.root, digest)
+
     def test_identical_trees_have_identical_manifest(self):
         digest = bundle.seal(self.root)
         with tempfile.TemporaryDirectory() as directory:
