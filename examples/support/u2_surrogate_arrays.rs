@@ -235,7 +235,7 @@ fn parse_array_row(line: &str, expected_job: U2SurrogateJob) -> io::Result<Archi
 fn replay_score_file(
     destination: &Path,
     config: &StageU2PanelConfig,
-    expected_plan: U2ExecutionPlan<'_>,
+    expected_plan: U2ExecutionPlan,
     archive_rows: &[ArchivedSurrogateRow],
 ) -> io::Result<usize> {
     let contents = fs::read_to_string(destination.join("surrogate_scores.tsv"))?;
@@ -286,7 +286,7 @@ fn replay_score_file(
 fn replay_score_row(
     destination: &Path,
     config: &StageU2PanelConfig,
-    expected_plan: U2ExecutionPlan<'_>,
+    expected_plan: U2ExecutionPlan,
     archive_rows: &[ArchivedSurrogateRow],
     line: &str,
     seen: &mut HashSet<(usize, u8, usize)>,
