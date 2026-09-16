@@ -85,8 +85,11 @@ jobs:
               > "artifacts/smoke/u2-captured-$run.tsv" \
               2> "artifacts/smoke/u2-captured-$run.stderr"
             test -s "artifacts/smoke/u2-inputs-$run/INPUTS_COMPLETE"
+            test -s "artifacts/smoke/u2-inputs-$run/SURROGATE_SCORES_COMPLETE"
+            test -s "artifacts/smoke/u2-inputs-$run/PAIR_RESULTS_COMPLETE"
             test "$(wc -l < "artifacts/smoke/u2-inputs-$run/sources.tsv")" -eq 5
             test "$(wc -l < "artifacts/smoke/u2-inputs-$run/surrogate_jobs.tsv")" -eq 229
+            test "$(wc -l < "artifacts/smoke/u2-inputs-$run/pair_results.tsv")" -eq 7
             for family in DrivenDampedOscillator SemiconductorLaser BistableLangevin FitzHughNagumo; do
               test "$(stat -c %s "artifacts/smoke/u2-inputs-$run/$family.f64le")" -eq 65536
             done
@@ -109,7 +112,7 @@ jobs:
           mkdir -p artifacts/smoke/source
           cp --parents Cargo.toml src/u2_*.rs src/universality*.rs src/spectral_null.rs \
             src/report_mode.rs examples/fluctuation_u2_report.rs examples/support/u2_capture.rs \
-            examples/support/u2_surrogate_arrays.rs \
+            examples/support/u2_pair_results.rs examples/support/u2_surrogate_arrays.rs \
             docs/research/fluctuation-universality-u2-stage0.md \
             scripts/evidence_bundle.py artifacts/smoke/source/
           sha256sum target/debug/examples/fluctuation_u2_report \
