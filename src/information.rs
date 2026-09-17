@@ -332,12 +332,21 @@ fn mutual_information_from_quantized(
         *joint_counts.entry((bin, state)).or_insert(0) += 1;
     }
 
+    // Canonicalize contribution order by sufficient counts, not state labels.
+    // A pure relabeling therefore produces bit-identical MI and cannot turn a
+    // mathematical tie into a sub-observed surrogate through addition order.
+    let mut terms = Vec::with_capacity(joint_counts.len());
+    for (&(bin, state), &joint_count) in &joint_counts {
+        terms.push((joint_count, observation_counts[bin], state_counts[&state]));
+    }
+    terms.sort_unstable();
+
     let n = quantized.len() as f64;
     let mut mutual_information = 0.0;
-    for (&(bin, state), &joint_count) in &joint_counts {
+    for (joint_count, observation_count, state_count) in terms {
         let p_joint = joint_count as f64 / n;
-        let p_observed = observation_counts[bin] as f64 / n;
-        let p_state = state_counts[&state] as f64 / n;
+        let p_observed = observation_count as f64 / n;
+        let p_state = state_count as f64 / n;
         mutual_information += p_joint * (p_joint / (p_observed * p_state)).log2();
     }
     mutual_information.max(0.0)
@@ -393,6 +402,22 @@ mod tests {
         let observed = [-1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0];
         let mi = histogram_mutual_information_bits(&observed, &hidden, 2).unwrap();
         assert_close(mi, 0.0, 1e-12);
+    }
+
+    #[test]
+    fn mutual_information_is_bit_invariant_to_state_relabeling() {
+        let quantized = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2];
+        let states = [0, 0, 1, 2, 0, 1, 1, 1, 2, 2, 0, 0, 0, 1, 2, 2];
+        let relabeled = states.map(|state| match state {
+            0 => 17,
+            1 => 3,
+            2 => 11,
+            _ => unreachable!(),
+        });
+
+        let original = mutual_information_from_quantized(&quantized, &states, 3);
+        let renamed = mutual_information_from_quantized(&quantized, &relabeled, 3);
+        assert_eq!(original.to_bits(), renamed.to_bits());
     }
 
     #[test]
