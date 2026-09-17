@@ -73,6 +73,12 @@ The current estimator is a histogram plug-in estimator. It is not an exact conti
 
 The returned `(1 + exceedances) / (1 + shifts)` quantity is named a **corrected tail fraction**, not an unconditional p-value. Circular wrapping and the chosen offsets must be scientifically justified and frozen before outcomes are inspected. Periodic structure can legitimately preserve high MI under some shifts—for example a half-period binary phase inversion—and that remains null evidence rather than being forced toward independence. This primitive does not establish causality or solve nonstationarity, boundary effects, lag selection or conditional information.
 
+## Stage 0.3 spectrum-matched observation null
+
+`spectral_surrogate_mutual_information_null` adds a second structure-preserving control for power-of-two real-valued observation records. It holds the hidden-state sequence fixed and uses the repository's pinned SciRust `phase_randomized_surrogate` through `spectral_phase_null`, preserving Fourier magnitudes (subject to the upstream floating-point contract) while randomizing phase relationships. Every derived surrogate seed and every surrogate MI score is retained.
+
+The observed series defines the equal-width histogram range once; every phase-randomized surrogate is quantized against those same bin edges. Values outside the observed range are clamped to the edge bins instead of moving the bins draw-by-draw. `bins`, surrogate count and root seed are protocol inputs and must be frozen before outcomes are inspected. The finite `(1 + exceedances) / (1 + surrogates)` value is reported only as a corrected tail fraction. It is not automatically an exact p-value and does not establish causality, a common physical mechanism, universality, or denoising benefit. This control specifically asks whether the observed state association survives a null that preserves the observation's second-order spectral magnitude structure while disrupting phase alignment.
+
 ## Required experimental protocol
 
 For a candidate noise-like component `N`, hidden/system state `Z` and transformation `T`, record at minimum:
@@ -105,7 +111,7 @@ Every confirmatory experiment should include:
 The Stage 0 histogram diagnostic and Stage 0.1 unrestricted permutation null are calibration layers. Subsequent work should compare stronger estimators and system classes without replacing these known-answer baselines:
 
 1. lagged and conditional information for dynamical systems;
-2. richer structure-preserving surrogate families beyond the Stage 0.2 cyclic-shift null, especially for nonstationary and noncircular records;
+2. richer structure-preserving surrogate families beyond the Stage 0.2 cyclic-shift and Stage 0.3 spectrum-matched controls, especially for nonstationary and noncircular records;
 3. information retention across frequency-selective filters;
 4. hidden-state inference from oscillator, bistable, FitzHugh-Nagumo and laser residuals;
 5. attention/RoPE/FLAT and KV-state experiments where perturbations may expose otherwise hidden internal state;

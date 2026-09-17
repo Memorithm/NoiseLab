@@ -6,6 +6,7 @@
 //! preregistered experiments, not for claiming exact continuous mutual
 //! information or causal mechanism.
 
+use crate::spectral_null::spectral_phase_null;
 use scirust_sim::SplitMix64;
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -16,6 +17,9 @@ pub const MAX_INFORMATION_PERMUTATIONS: usize = 100_000;
 
 /// Hard safety ceiling for a single cyclic-shift surrogate request.
 pub const MAX_INFORMATION_CYCLIC_SHIFTS: usize = 100_000;
+
+/// Hard safety ceiling for a single phase-randomized spectral-null request.
+pub const MAX_INFORMATION_SPECTRAL_SURROGATES: usize = 100_000;
 
 /// Errors returned by information-preservation diagnostics.
 #[derive(Debug, Clone, PartialEq)]
@@ -49,6 +53,16 @@ pub enum InformationError {
     },
     DuplicateCyclicShift {
         shift: usize,
+    },
+    TooFewSpectralSurrogates {
+        surrogates: usize,
+    },
+    TooManySpectralSurrogates {
+        requested: usize,
+        maximum: usize,
+    },
+    SpectralSurrogateFailure {
+        reason: String,
     },
     NonFiniteObservation {
         index: usize,
@@ -98,6 +112,18 @@ impl Display for InformationError {
             Self::DuplicateCyclicShift { shift } => write!(
                 f,
                 "cyclic shift {shift} is duplicated"
+            ),
+            Self::TooFewSpectralSurrogates { surrogates } => write!(
+                f,
+                "spectral null requires at least 1 surrogate, got {surrogates}"
+            ),
+            Self::TooManySpectralSurrogates { requested, maximum } => write!(
+                f,
+                "requested {requested} spectral surrogates exceeds safety maximum {maximum}"
+            ),
+            Self::SpectralSurrogateFailure { reason } => write!(
+                f,
+                "SciRust spectral surrogate rejected the declared observation: {reason}"
             ),
             Self::NonFiniteObservation { index, value } => write!(
                 f,
@@ -156,6 +182,26 @@ pub struct MutualInformationCyclicShiftNull {
     pub exceedances_at_or_above_observed: usize,
     pub corrected_tail_fraction: f64,
     pub shift_offsets: Vec<usize>,
+    pub surrogate_mutual_information_bits: Vec<f64>,
+}
+
+/// Spectrum-matched null for histogram mutual information.
+///
+/// The hidden-state sequence remains fixed while SciRust phase-randomizes the
+/// observation series. Fourier magnitudes, DC and Nyquist are therefore
+/// preserved according to the pinned SciRust contract while original phase
+/// alignment is disrupted. Surrogate observations are quantized against the
+/// original observation range so bin edges do not move between null draws.
+/// The corrected tail fraction is a finite surrogate diagnostic, not an
+/// unconditional exact p-value.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MutualInformationSpectralNull {
+    pub observed_mutual_information_bits: f64,
+    pub surrogate_mean_mutual_information_bits: f64,
+    pub exceedances_at_or_above_observed: usize,
+    pub corrected_tail_fraction: f64,
+    pub root_seed: u64,
+    pub surrogate_seeds: Vec<u64>,
     pub surrogate_mutual_information_bits: Vec<f64>,
 }
 
@@ -355,6 +401,93 @@ pub fn cyclic_shift_mutual_information_null(
     })
 }
 
+/// Compare observed histogram mutual information with phase-randomized
+/// observation surrogates from the pinned SciRust signal primitive.
+///
+/// This null keeps the declared hidden-state labels fixed and preserves the
+/// observation Fourier magnitudes while changing phase relationships. Every
+/// derived surrogate seed and every MI score is retained in generation order.
+/// The original observation's equal-width bin edges are reused for all
+/// surrogates, preventing draw-specific range changes from becoming an
+/// uncontrolled part of the null.
+///
+/// Experiments must preregister `bins`, `surrogates`, `root_seed`, and justify
+/// the spectrum-matched null. The corrected tail fraction does not establish
+/// causality, mechanism, universality, or denoising benefit.
+pub fn spectral_surrogate_mutual_information_null(
+    observed: &[f64],
+    hidden_state: &[usize],
+    bins: usize,
+    surrogates: usize,
+    root_seed: u64,
+) -> Result<MutualInformationSpectralNull, InformationError> {
+    validate_inputs(observed, hidden_state, bins)?;
+    if surrogates == 0 {
+        return Err(InformationError::TooFewSpectralSurrogates { surrogates });
+    }
+    if surrogates > MAX_INFORMATION_SPECTRAL_SURROGATES {
+        return Err(InformationError::TooManySpectralSurrogates {
+            requested: surrogates,
+            maximum: MAX_INFORMATION_SPECTRAL_SURROGATES,
+        });
+    }
+
+    let quantized = quantize_equal_width(observed, bins)?;
+    let observed_mutual_information_bits =
+        mutual_information_from_quantized(&quantized, hidden_state, bins);
+    let (reference_min, reference_max) = observation_range(observed)?;
+    let mut rng = SplitMix64::new(root_seed);
+    let mut surrogate_seeds = Vec::new();
+    surrogate_seeds.try_reserve_exact(surrogates).map_err(|_| {
+        InformationError::TooManySpectralSurrogates {
+            requested: surrogates,
+            maximum: MAX_INFORMATION_SPECTRAL_SURROGATES,
+        }
+    })?;
+    let mut surrogate_mutual_information_bits = Vec::new();
+    surrogate_mutual_information_bits
+        .try_reserve_exact(surrogates)
+        .map_err(|_| InformationError::TooManySpectralSurrogates {
+            requested: surrogates,
+            maximum: MAX_INFORMATION_SPECTRAL_SURROGATES,
+        })?;
+
+    let mut exceedances_at_or_above_observed = 0usize;
+    let mut surrogate_sum = 0.0;
+    for _ in 0..surrogates {
+        let surrogate_seed = rng.next_u64();
+        let surrogate = spectral_phase_null(observed, surrogate_seed).map_err(|error| {
+            InformationError::SpectralSurrogateFailure {
+                reason: error.to_string(),
+            }
+        })?;
+        let surrogate_quantized = quantize_equal_width_with_reference_range(
+            &surrogate,
+            bins,
+            reference_min,
+            reference_max,
+        )?;
+        let score = mutual_information_from_quantized(&surrogate_quantized, hidden_state, bins);
+        if score >= observed_mutual_information_bits {
+            exceedances_at_or_above_observed += 1;
+        }
+        surrogate_sum += score;
+        surrogate_seeds.push(surrogate_seed);
+        surrogate_mutual_information_bits.push(score);
+    }
+
+    Ok(MutualInformationSpectralNull {
+        observed_mutual_information_bits,
+        surrogate_mean_mutual_information_bits: surrogate_sum / surrogates as f64,
+        exceedances_at_or_above_observed,
+        corrected_tail_fraction: (exceedances_at_or_above_observed as f64 + 1.0)
+            / (surrogates as f64 + 1.0),
+        root_seed,
+        surrogate_seeds,
+        surrogate_mutual_information_bits,
+    })
+}
+
 /// Compare how much declared hidden-state information is present in an
 /// apparently noisy component before and after a transformation.
 ///
@@ -427,6 +560,54 @@ fn validate_inputs(
         }
     }
     Ok(())
+}
+
+fn observation_range(observed: &[f64]) -> Result<(f64, f64), InformationError> {
+    let mut min = f64::INFINITY;
+    let mut max = f64::NEG_INFINITY;
+    for (index, &value) in observed.iter().enumerate() {
+        if !value.is_finite() {
+            return Err(InformationError::NonFiniteObservation { index, value });
+        }
+        min = min.min(value);
+        max = max.max(value);
+    }
+    Ok((min, max))
+}
+
+fn quantize_equal_width_with_reference_range(
+    observed: &[f64],
+    bins: usize,
+    reference_min: f64,
+    reference_max: f64,
+) -> Result<Vec<usize>, InformationError> {
+    if reference_min == reference_max {
+        for (index, &value) in observed.iter().enumerate() {
+            if !value.is_finite() {
+                return Err(InformationError::NonFiniteObservation { index, value });
+            }
+        }
+        return Ok(vec![0; observed.len()]);
+    }
+    let width = (reference_max - reference_min) / bins as f64;
+    observed
+        .iter()
+        .enumerate()
+        .map(|(index, &value)| {
+            if !value.is_finite() {
+                return Err(InformationError::NonFiniteObservation { index, value });
+            }
+            let scaled = ((value - reference_min) / width).floor();
+            let bin = if scaled <= 0.0 {
+                0
+            } else if scaled >= bins as f64 {
+                bins - 1
+            } else {
+                scaled as usize
+            };
+            Ok(bin)
+        })
+        .collect()
 }
 
 fn quantize_equal_width(observed: &[f64], bins: usize) -> Result<Vec<usize>, InformationError> {
@@ -617,6 +798,88 @@ mod tests {
             .all(|&score| score == 0.0));
         assert_eq!(null.exceedances_at_or_above_observed, 32);
         assert_close(null.permutation_p_value, 1.0, 1e-12);
+    }
+
+    #[test]
+    fn spectral_null_is_reproducible_and_retains_every_seed_and_score() {
+        let observed: Vec<f64> = (0..64)
+            .map(|index| {
+                let x = index as f64;
+                (0.19 * x).sin() + 0.3 * (0.41 * x).cos()
+            })
+            .collect();
+        let hidden: Vec<usize> = (0..64).map(|index| usize::from(index % 8 < 4)).collect();
+        let a =
+            spectral_surrogate_mutual_information_null(&observed, &hidden, 4, 16, 0x5eed).unwrap();
+        let b =
+            spectral_surrogate_mutual_information_null(&observed, &hidden, 4, 16, 0x5eed).unwrap();
+
+        assert_eq!(a, b);
+        assert_eq!(a.surrogate_seeds.len(), 16);
+        assert_eq!(a.surrogate_mutual_information_bits.len(), 16);
+        assert!((0.0..=1.0).contains(&a.corrected_tail_fraction));
+        assert!(a
+            .surrogate_mutual_information_bits
+            .iter()
+            .all(|score| score.is_finite() && *score >= 0.0));
+    }
+
+    #[test]
+    fn spectral_null_uses_fixed_observation_range_and_retains_phase_null_boundary() {
+        let observed: Vec<f64> = (0..32)
+            .map(|index| {
+                let x = index as f64;
+                (0.23 * x).sin() + 0.15 * (0.51 * x).cos()
+            })
+            .collect();
+        let hidden: Vec<usize> = (0..32).map(|index| index / 8).collect();
+        let result =
+            spectral_surrogate_mutual_information_null(&observed, &hidden, 3, 8, 17).unwrap();
+
+        assert_eq!(result.root_seed, 17);
+        assert_eq!(result.surrogate_seeds.len(), 8);
+        assert_eq!(
+            result.exceedances_at_or_above_observed
+                + result
+                    .surrogate_mutual_information_bits
+                    .iter()
+                    .filter(|score| **score < result.observed_mutual_information_bits)
+                    .count(),
+            8
+        );
+    }
+
+    #[test]
+    fn spectral_null_rejects_zero_excessive_and_upstream_invalid_requests() {
+        let observed = vec![0.0; 8];
+        let hidden = vec![0usize; 8];
+        assert_eq!(
+            spectral_surrogate_mutual_information_null(&observed, &hidden, 2, 0, 1),
+            Err(InformationError::TooFewSpectralSurrogates { surrogates: 0 })
+        );
+        assert_eq!(
+            spectral_surrogate_mutual_information_null(
+                &observed,
+                &hidden,
+                2,
+                MAX_INFORMATION_SPECTRAL_SURROGATES + 1,
+                1,
+            ),
+            Err(InformationError::TooManySpectralSurrogates {
+                requested: MAX_INFORMATION_SPECTRAL_SURROGATES + 1,
+                maximum: MAX_INFORMATION_SPECTRAL_SURROGATES,
+            })
+        );
+
+        let invalid_observed = vec![0.0; 6];
+        let invalid_hidden = vec![0usize; 6];
+        let error =
+            spectral_surrogate_mutual_information_null(&invalid_observed, &invalid_hidden, 2, 1, 1)
+                .unwrap_err();
+        assert!(matches!(
+            error,
+            InformationError::SpectralSurrogateFailure { .. }
+        ));
     }
 
     #[test]

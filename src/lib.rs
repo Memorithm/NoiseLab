@@ -65,9 +65,11 @@ pub use fhn_horizon::{
 pub use fhn_stage0::{classify_fhn_stage0, FhnStage0Decision};
 pub use information::{
     audit_noise_information, cyclic_shift_mutual_information_null, discrete_entropy_bits,
-    histogram_mutual_information_bits, permutation_mutual_information_null, InformationError,
-    MutualInformationCyclicShiftNull, MutualInformationPermutationNull, NoiseInformationAudit,
+    histogram_mutual_information_bits, permutation_mutual_information_null,
+    spectral_surrogate_mutual_information_null, InformationError, MutualInformationCyclicShiftNull,
+    MutualInformationPermutationNull, MutualInformationSpectralNull, NoiseInformationAudit,
     MAX_INFORMATION_CYCLIC_SHIFTS, MAX_INFORMATION_PERMUTATIONS,
+    MAX_INFORMATION_SPECTRAL_SURROGATES,
 };
 pub use langevin::{
     calibrate_kramers_matching, coherent_switching_response, simulate_double_well,
