@@ -14,6 +14,9 @@ use std::fmt::{Display, Formatter};
 /// Hard safety ceiling for a single permutation-null request.
 pub const MAX_INFORMATION_PERMUTATIONS: usize = 100_000;
 
+/// Hard safety ceiling for a single cyclic-shift surrogate request.
+pub const MAX_INFORMATION_CYCLIC_SHIFTS: usize = 100_000;
+
 /// Errors returned by information-preservation diagnostics.
 #[derive(Debug, Clone, PartialEq)]
 pub enum InformationError {
@@ -31,6 +34,21 @@ pub enum InformationError {
     TooManyPermutations {
         requested: usize,
         maximum: usize,
+    },
+    TooFewSamplesForCyclicShift {
+        samples: usize,
+    },
+    TooFewCyclicShifts,
+    TooManyCyclicShifts {
+        requested: usize,
+        maximum: usize,
+    },
+    InvalidCyclicShift {
+        shift: usize,
+        samples: usize,
+    },
+    DuplicateCyclicShift {
+        shift: usize,
     },
     NonFiniteObservation {
         index: usize,
@@ -60,6 +78,26 @@ impl Display for InformationError {
             Self::TooManyPermutations { requested, maximum } => write!(
                 f,
                 "requested {requested} permutations exceeds safety maximum {maximum}"
+            ),
+            Self::TooFewSamplesForCyclicShift { samples } => write!(
+                f,
+                "cyclic-shift null requires at least 2 samples, got {samples}"
+            ),
+            Self::TooFewCyclicShifts => write!(
+                f,
+                "cyclic-shift null requires at least one non-zero shift"
+            ),
+            Self::TooManyCyclicShifts { requested, maximum } => write!(
+                f,
+                "requested {requested} cyclic shifts exceeds safety maximum {maximum}"
+            ),
+            Self::InvalidCyclicShift { shift, samples } => write!(
+                f,
+                "cyclic shift {shift} is invalid for a {samples}-sample series; use 1..{samples}"
+            ),
+            Self::DuplicateCyclicShift { shift } => write!(
+                f,
+                "cyclic shift {shift} is duplicated"
             ),
             Self::NonFiniteObservation { index, value } => write!(
                 f,
@@ -102,6 +140,22 @@ pub struct MutualInformationPermutationNull {
     pub exceedances_at_or_above_observed: usize,
     pub permutation_p_value: f64,
     pub seed: u64,
+    pub surrogate_mutual_information_bits: Vec<f64>,
+}
+
+/// Deterministic structure-preserving cyclic-shift null for time-ordered data.
+///
+/// Each declared non-zero shift rotates the complete hidden-state sequence
+/// against the fixed observation sequence. This preserves the hidden-state
+/// marginal and its circular lag organization. The corrected tail fraction is
+/// a finite surrogate diagnostic; it is not automatically an exact p-value.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MutualInformationCyclicShiftNull {
+    pub observed_mutual_information_bits: f64,
+    pub surrogate_mean_mutual_information_bits: f64,
+    pub exceedances_at_or_above_observed: usize,
+    pub corrected_tail_fraction: f64,
+    pub shift_offsets: Vec<usize>,
     pub surrogate_mutual_information_bits: Vec<f64>,
 }
 
@@ -214,6 +268,89 @@ pub fn permutation_mutual_information_null(
         exceedances_at_or_above_observed,
         permutation_p_value,
         seed,
+        surrogate_mutual_information_bits,
+    })
+}
+
+/// Compare observed histogram mutual information with preregistered circular
+/// shifts of the hidden-state sequence.
+///
+/// The observation vector and its quantization remain fixed. For shift `s`,
+/// surrogate label `i` is `hidden_state[(i + s) % n]`. Only non-zero shifts
+/// smaller than the sample count are accepted, and duplicates fail closed.
+/// Exact offsets and surrogate scores are retained in declaration order.
+///
+/// This null is useful when unrestricted label permutation would destroy
+/// temporal structure, but circular wrapping itself must be scientifically
+/// justified and preregistered. The corrected tail fraction is not evidence of
+/// causality and is not automatically an exact p-value.
+pub fn cyclic_shift_mutual_information_null(
+    observed: &[f64],
+    hidden_state: &[usize],
+    bins: usize,
+    shift_offsets: &[usize],
+) -> Result<MutualInformationCyclicShiftNull, InformationError> {
+    validate_inputs(observed, hidden_state, bins)?;
+    let samples = hidden_state.len();
+    if samples < 2 {
+        return Err(InformationError::TooFewSamplesForCyclicShift { samples });
+    }
+    if shift_offsets.is_empty() {
+        return Err(InformationError::TooFewCyclicShifts);
+    }
+    if shift_offsets.len() > MAX_INFORMATION_CYCLIC_SHIFTS {
+        return Err(InformationError::TooManyCyclicShifts {
+            requested: shift_offsets.len(),
+            maximum: MAX_INFORMATION_CYCLIC_SHIFTS,
+        });
+    }
+
+    let mut seen = std::collections::BTreeSet::new();
+    for &shift in shift_offsets {
+        if shift == 0 || shift >= samples {
+            return Err(InformationError::InvalidCyclicShift { shift, samples });
+        }
+        if !seen.insert(shift) {
+            return Err(InformationError::DuplicateCyclicShift { shift });
+        }
+    }
+
+    let quantized = quantize_equal_width(observed, bins)?;
+    let observed_mutual_information_bits =
+        mutual_information_from_quantized(&quantized, hidden_state, bins);
+    let mut shifted = vec![0usize; samples];
+    let mut surrogate_mutual_information_bits = Vec::new();
+    surrogate_mutual_information_bits
+        .try_reserve_exact(shift_offsets.len())
+        .map_err(|_| InformationError::TooManyCyclicShifts {
+            requested: shift_offsets.len(),
+            maximum: MAX_INFORMATION_CYCLIC_SHIFTS,
+        })?;
+
+    let mut exceedances_at_or_above_observed = 0usize;
+    let mut surrogate_sum = 0.0;
+    for &shift in shift_offsets {
+        for (index, slot) in shifted.iter_mut().enumerate() {
+            *slot = hidden_state[(index + shift) % samples];
+        }
+        let surrogate = mutual_information_from_quantized(&quantized, &shifted, bins);
+        if surrogate >= observed_mutual_information_bits {
+            exceedances_at_or_above_observed += 1;
+        }
+        surrogate_sum += surrogate;
+        surrogate_mutual_information_bits.push(surrogate);
+    }
+
+    let surrogate_mean_mutual_information_bits = surrogate_sum / shift_offsets.len() as f64;
+    let corrected_tail_fraction =
+        (exceedances_at_or_above_observed as f64 + 1.0) / (shift_offsets.len() as f64 + 1.0);
+
+    Ok(MutualInformationCyclicShiftNull {
+        observed_mutual_information_bits,
+        surrogate_mean_mutual_information_bits,
+        exceedances_at_or_above_observed,
+        corrected_tail_fraction,
+        shift_offsets: shift_offsets.to_vec(),
         surrogate_mutual_information_bits,
     })
 }
@@ -480,6 +617,65 @@ mod tests {
             .all(|&score| score == 0.0));
         assert_eq!(null.exceedances_at_or_above_observed, 32);
         assert_close(null.permutation_p_value, 1.0, 1e-12);
+    }
+
+    #[test]
+    fn cyclic_shift_null_retains_declared_offsets_and_temporal_structure() {
+        let hidden = [0, 0, 0, 0, 1, 1, 1, 1];
+        let observed = [-1.0, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0];
+        let null =
+            cyclic_shift_mutual_information_null(&observed, &hidden, 2, &[1, 2, 3, 4, 5, 6, 7])
+                .unwrap();
+
+        assert_close(null.observed_mutual_information_bits, 1.0, 1e-12);
+        assert_eq!(null.shift_offsets, vec![1, 2, 3, 4, 5, 6, 7]);
+        assert_eq!(null.surrogate_mutual_information_bits.len(), 7);
+        assert_close(null.surrogate_mutual_information_bits[3], 1.0, 1e-12);
+        assert_eq!(null.exceedances_at_or_above_observed, 1);
+        assert_close(null.corrected_tail_fraction, 0.25, 1e-12);
+    }
+
+    #[test]
+    fn cyclic_shift_null_is_deterministic_and_order_preserving() {
+        let hidden = [0, 0, 0, 1, 1, 1];
+        let observed = [-2.0, -1.0, -0.5, 0.5, 1.0, 2.0];
+        let a = cyclic_shift_mutual_information_null(&observed, &hidden, 3, &[1, 3, 5]).unwrap();
+        let b = cyclic_shift_mutual_information_null(&observed, &hidden, 3, &[1, 3, 5]).unwrap();
+        assert_eq!(a, b);
+        assert_eq!(a.shift_offsets, vec![1, 3, 5]);
+    }
+
+    #[test]
+    fn cyclic_shift_null_rejects_undefined_or_weighted_shift_sets() {
+        let observed = [0.0, 1.0, 2.0, 3.0];
+        let hidden = [0, 0, 1, 1];
+
+        assert_eq!(
+            cyclic_shift_mutual_information_null(&observed, &hidden, 2, &[]),
+            Err(InformationError::TooFewCyclicShifts)
+        );
+        assert_eq!(
+            cyclic_shift_mutual_information_null(&observed, &hidden, 2, &[0]),
+            Err(InformationError::InvalidCyclicShift {
+                shift: 0,
+                samples: 4
+            })
+        );
+        assert_eq!(
+            cyclic_shift_mutual_information_null(&observed, &hidden, 2, &[4]),
+            Err(InformationError::InvalidCyclicShift {
+                shift: 4,
+                samples: 4
+            })
+        );
+        assert_eq!(
+            cyclic_shift_mutual_information_null(&observed, &hidden, 2, &[1, 1]),
+            Err(InformationError::DuplicateCyclicShift { shift: 1 })
+        );
+        assert_eq!(
+            cyclic_shift_mutual_information_null(&[1.0], &[0], 2, &[1]),
+            Err(InformationError::TooFewSamplesForCyclicShift { samples: 1 })
+        );
     }
 
     #[test]
