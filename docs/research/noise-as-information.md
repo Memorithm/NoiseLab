@@ -79,6 +79,12 @@ The returned `(1 + exceedances) / (1 + shifts)` quantity is named a **corrected 
 
 The observed series defines the equal-width histogram range once; every phase-randomized surrogate is quantized against those same bin edges. Values outside the observed range are clamped to the edge bins instead of moving the bins draw-by-draw. `bins`, surrogate count and root seed are protocol inputs and must be frozen before outcomes are inspected. The finite `(1 + exceedances) / (1 + surrogates)` value is reported only as a corrected tail fraction. It is not automatically an exact p-value and does not establish causality, a common physical mechanism, universality, or denoising benefit. This control specifically asks whether the observed state association survives a null that preserves the observation's second-order spectral magnitude structure while disrupting phase alignment.
 
+## Stage 0.4 non-circular lagged association diagnostic
+
+`lagged_histogram_mutual_information_bits` evaluates a caller-declared lag set without circular wrapping. The complete observation series is quantized once, so bin edges remain fixed across lags; each lag then uses only its overlapping observation/state pairs. By convention a positive lag pairs `N[t]` with `Z[t + lag]`, a negative lag pairs `N[t - lag]` with `Z[t]`, and lag zero is contemporaneous association. Duplicate lags and lags leaving no overlap fail closed, and declaration order plus aligned sample count are retained.
+
+This diagnostic is descriptive and does not infer causal direction. Searching a large lag range after inspecting outcomes creates a selection problem; confirmatory use must preregister the lag set or declare a separate multiplicity/selection procedure. Different lags also use different aligned sample counts, which must remain visible rather than being silently treated as equal evidence.
+
 ## Required experimental protocol
 
 For a candidate noise-like component `N`, hidden/system state `Z` and transformation `T`, record at minimum:
@@ -110,7 +116,7 @@ Every confirmatory experiment should include:
 
 The Stage 0 histogram diagnostic and Stage 0.1 unrestricted permutation null are calibration layers. Subsequent work should compare stronger estimators and system classes without replacing these known-answer baselines:
 
-1. lagged and conditional information for dynamical systems;
+1. conditional information for dynamical systems, building on the implemented non-circular lagged association diagnostic;
 2. richer structure-preserving surrogate families beyond the Stage 0.2 cyclic-shift and Stage 0.3 spectrum-matched controls, especially for nonstationary and noncircular records;
 3. information retention across frequency-selective filters;
 4. hidden-state inference from oscillator, bistable, FitzHugh-Nagumo and laser residuals;
