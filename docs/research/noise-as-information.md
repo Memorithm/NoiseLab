@@ -83,6 +83,8 @@ The observed series defines the equal-width histogram range once; every phase-ra
 
 `lagged_histogram_mutual_information_bits` evaluates a caller-declared lag set without circular wrapping. The complete observation series is quantized once, so bin edges remain fixed across lags; each lag then uses only its overlapping observation/state pairs. By convention a positive lag pairs `N[t]` with `Z[t + lag]`, a negative lag pairs `N[t - lag]` with `Z[t]`, and lag zero is contemporaneous association. Duplicate lags and lags leaving no overlap fail closed, and declaration order plus aligned sample count are retained.
 
+`conditional_histogram_mutual_information_bits` adds the first bounded conditional-information calibration primitive. It estimates empirical `I(N; Z | C)` with the same frozen equal-width quantization of the real-valued observation and exact discrete labels for the declared state and conditioner. Known-answer controls include a state-coded signal whose association vanishes when conditioning on the state itself and an XOR construction whose marginal MI is zero while conditional MI is one bit. A positive residual estimate means only that association remains under the declared `C` and finite histogram estimator; it is not causal evidence, does not prove `C` sufficient, and does not identify a physical mechanism. Binning and the conditioning variable must be frozen before outcome inspection.
+
 This diagnostic is descriptive and does not infer causal direction. Searching a large lag range after inspecting outcomes creates a selection problem; confirmatory use must preregister the lag set or declare a separate multiplicity/selection procedure. Different lags also use different aligned sample counts, which must remain visible rather than being silently treated as equal evidence.
 
 ## Required experimental protocol
@@ -116,7 +118,7 @@ Every confirmatory experiment should include:
 
 The Stage 0 histogram diagnostic and Stage 0.1 unrestricted permutation null are calibration layers. Subsequent work should compare stronger estimators and system classes without replacing these known-answer baselines:
 
-1. conditional information for dynamical systems, building on the implemented non-circular lagged association diagnostic;
+1. conditional-information experiments on preregistered dynamical-system state/condition variables, building on the implemented calibration primitive and non-circular lagged association diagnostic;
 2. richer structure-preserving surrogate families beyond the Stage 0.2 cyclic-shift and Stage 0.3 spectrum-matched controls, especially for nonstationary and noncircular records;
 3. information retention across frequency-selective filters;
 4. hidden-state inference from oscillator, bistable, FitzHugh-Nagumo and laser residuals;
