@@ -610,7 +610,10 @@ fn quantize_equal_width_with_reference_range(
         .collect()
 }
 
-fn quantize_equal_width(observed: &[f64], bins: usize) -> Result<Vec<usize>, InformationError> {
+pub(crate) fn quantize_equal_width(
+    observed: &[f64],
+    bins: usize,
+) -> Result<Vec<usize>, InformationError> {
     let mut min = f64::INFINITY;
     let mut max = f64::NEG_INFINITY;
     for (index, &value) in observed.iter().enumerate() {

@@ -11,6 +11,7 @@ pub mod attention;
 pub mod calibration;
 pub mod calibration_evidence;
 pub mod calibration_ladder;
+pub mod conditional_information;
 pub mod evidence;
 pub mod fhn;
 pub mod fhn_horizon;
@@ -50,6 +51,9 @@ pub use calibration_evidence::{
     evidence_from_receipts, CalibrationReceipt, CalibrationReceiptError,
 };
 pub use calibration_ladder::{CalibrationEvidence, CalibrationGateError, CalibrationStage};
+pub use conditional_information::{
+    conditional_histogram_mutual_information_bits, ConditionalInformationError,
+};
 pub use evidence::{detect_edge_separated_peak, EdgeSeparatedPeak, EvidenceError};
 pub use fhn::{
     calibrate_coherence_resonance, inter_spike_stats, simulate_fhn_spikes, CoherenceCalibration,
