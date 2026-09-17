@@ -12,12 +12,25 @@ use std::fmt::{Display, Formatter};
 #[derive(Debug, Clone, PartialEq)]
 pub enum LaggedInformationError {
     EmptyInput,
-    LengthMismatch { observed: usize, hidden_state: usize },
-    TooFewBins { bins: usize },
+    LengthMismatch {
+        observed: usize,
+        hidden_state: usize,
+    },
+    TooFewBins {
+        bins: usize,
+    },
     EmptyLagSet,
-    InvalidLag { lag: i64, samples: usize },
-    DuplicateLag { lag: i64 },
-    NonFiniteObservation { index: usize, value: f64 },
+    InvalidLag {
+        lag: i64,
+        samples: usize,
+    },
+    DuplicateLag {
+        lag: i64,
+    },
+    NonFiniteObservation {
+        index: usize,
+        value: f64,
+    },
 }
 
 impl Display for LaggedInformationError {
@@ -87,27 +100,43 @@ pub fn lagged_histogram_mutual_information_bits(
         }
 
         let (observation_slice, state_slice) = if lag >= 0 {
-            (&quantized[..samples - magnitude], &hidden_state[magnitude..])
+            (
+                &quantized[..samples - magnitude],
+                &hidden_state[magnitude..],
+            )
         } else {
-            (&quantized[magnitude..], &hidden_state[..samples - magnitude])
+            (
+                &quantized[magnitude..],
+                &hidden_state[..samples - magnitude],
+            )
         };
 
         points.push(LaggedMutualInformationPoint {
             lag,
             aligned_samples: observation_slice.len(),
-            mutual_information_bits: mutual_information_from_quantized(observation_slice, state_slice),
+            mutual_information_bits: mutual_information_from_quantized(
+                observation_slice,
+                state_slice,
+            ),
         });
     }
 
     Ok(LaggedMutualInformationScan { bins, points })
 }
 
-fn validate_inputs(observed: &[f64], hidden_state: &[usize], bins: usize) -> Result<(), LaggedInformationError> {
+fn validate_inputs(
+    observed: &[f64],
+    hidden_state: &[usize],
+    bins: usize,
+) -> Result<(), LaggedInformationError> {
     if observed.is_empty() || hidden_state.is_empty() {
         return Err(LaggedInformationError::EmptyInput);
     }
     if observed.len() != hidden_state.len() {
-        return Err(LaggedInformationError::LengthMismatch { observed: observed.len(), hidden_state: hidden_state.len() });
+        return Err(LaggedInformationError::LengthMismatch {
+            observed: observed.len(),
+            hidden_state: hidden_state.len(),
+        });
     }
     if bins < 2 {
         return Err(LaggedInformationError::TooFewBins { bins });
@@ -120,7 +149,10 @@ fn validate_inputs(observed: &[f64], hidden_state: &[usize], bins: usize) -> Res
     Ok(())
 }
 
-fn quantize_full_observation(observed: &[f64], bins: usize) -> Result<Vec<usize>, LaggedInformationError> {
+fn quantize_full_observation(
+    observed: &[f64],
+    bins: usize,
+) -> Result<Vec<usize>, LaggedInformationError> {
     let mut minimum = f64::INFINITY;
     let mut maximum = f64::NEG_INFINITY;
     for (index, &value) in observed.iter().enumerate() {
@@ -134,10 +166,19 @@ fn quantize_full_observation(observed: &[f64], bins: usize) -> Result<Vec<usize>
         return Ok(vec![0; observed.len()]);
     }
     let width = (maximum - minimum) / bins as f64;
-    Ok(observed.iter().map(|&value| {
-        let scaled = ((value - minimum) / width).floor();
-        if scaled <= 0.0 { 0 } else if scaled >= bins as f64 { bins - 1 } else { scaled as usize }
-    }).collect())
+    Ok(observed
+        .iter()
+        .map(|&value| {
+            let scaled = ((value - minimum) / width).floor();
+            if scaled <= 0.0 {
+                0
+            } else if scaled >= bins as f64 {
+                bins - 1
+            } else {
+                scaled as usize
+            }
+        })
+        .collect())
 }
 
 fn mutual_information_from_quantized(observed: &[usize], hidden_state: &[usize]) -> f64 {
@@ -150,12 +191,15 @@ fn mutual_information_from_quantized(observed: &[usize], hidden_state: &[usize])
         *joint_counts.entry((observation, state)).or_insert(0) += 1;
     }
     let samples = observed.len() as f64;
-    joint_counts.into_iter().map(|((observation, state), joint_count)| {
-        let p_joint = joint_count as f64 / samples;
-        let p_observation = observation_counts[&observation] as f64 / samples;
-        let p_state = state_counts[&state] as f64 / samples;
-        p_joint * (p_joint / (p_observation * p_state)).log2()
-    }).sum()
+    joint_counts
+        .into_iter()
+        .map(|((observation, state), joint_count)| {
+            let p_joint = joint_count as f64 / samples;
+            let p_observation = observation_counts[&observation] as f64 / samples;
+            let p_state = state_counts[&state] as f64 / samples;
+            p_joint * (p_joint / (p_observation * p_state)).log2()
+        })
+        .sum()
 }
 
 #[cfg(test)]
@@ -170,17 +214,34 @@ mod tests {
     fn declaration_order_and_overlap_are_retained() {
         let hidden = [0, 1, 0, 1, 0, 1, 0, 1];
         let observed = [-1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0];
-        let scan = lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[0, 2, -2]).unwrap();
-        assert_eq!(scan.points.iter().map(|point| point.lag).collect::<Vec<_>>(), vec![0, 2, -2]);
-        assert_eq!(scan.points.iter().map(|point| point.aligned_samples).collect::<Vec<_>>(), vec![8, 6, 6]);
-        assert!(scan.points.iter().all(|point| (point.mutual_information_bits - 1.0).abs() <= 1e-12));
+        let scan =
+            lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[0, 2, -2]).unwrap();
+        assert_eq!(
+            scan.points
+                .iter()
+                .map(|point| point.lag)
+                .collect::<Vec<_>>(),
+            vec![0, 2, -2]
+        );
+        assert_eq!(
+            scan.points
+                .iter()
+                .map(|point| point.aligned_samples)
+                .collect::<Vec<_>>(),
+            vec![8, 6, 6]
+        );
+        assert!(scan
+            .points
+            .iter()
+            .all(|point| (point.mutual_information_bits - 1.0).abs() <= 1e-12));
     }
 
     #[test]
     fn noncircular_alignment_detects_declared_state_lead() {
         let hidden = [0, 0, 1, 1, 0, 0, 1, 1];
         let observed = [-1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0];
-        let scan = lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[0, 1]).unwrap();
+        let scan =
+            lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[0, 1]).unwrap();
         assert_close(scan.points[0].mutual_information_bits, 0.0);
         assert!(scan.points[1].mutual_information_bits > 0.5);
         assert_eq!(scan.points[1].aligned_samples, 7);
@@ -190,24 +251,55 @@ mod tests {
     fn constant_observation_has_zero_information() {
         let hidden = [0, 1, 0, 1, 0];
         let observed = [3.0; 5];
-        let scan = lagged_histogram_mutual_information_bits(&observed, &hidden, 4, &[-2, 0, 2]).unwrap();
-        assert!(scan.points.iter().all(|point| point.mutual_information_bits == 0.0));
+        let scan =
+            lagged_histogram_mutual_information_bits(&observed, &hidden, 4, &[-2, 0, 2]).unwrap();
+        assert!(scan
+            .points
+            .iter()
+            .all(|point| point.mutual_information_bits == 0.0));
     }
 
     #[test]
     fn invalid_or_duplicate_lags_fail_closed() {
         let observed = [0.0, 1.0, 2.0, 3.0];
         let hidden = [0, 0, 1, 1];
-        assert_eq!(lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[]), Err(LaggedInformationError::EmptyLagSet));
-        assert_eq!(lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[1, 1]), Err(LaggedInformationError::DuplicateLag { lag: 1 }));
-        assert_eq!(lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[4]), Err(LaggedInformationError::InvalidLag { lag: 4, samples: 4 }));
-        assert_eq!(lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[-4]), Err(LaggedInformationError::InvalidLag { lag: -4, samples: 4 }));
+        assert_eq!(
+            lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[]),
+            Err(LaggedInformationError::EmptyLagSet)
+        );
+        assert_eq!(
+            lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[1, 1]),
+            Err(LaggedInformationError::DuplicateLag { lag: 1 })
+        );
+        assert_eq!(
+            lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[4]),
+            Err(LaggedInformationError::InvalidLag { lag: 4, samples: 4 })
+        );
+        assert_eq!(
+            lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[-4]),
+            Err(LaggedInformationError::InvalidLag {
+                lag: -4,
+                samples: 4
+            })
+        );
     }
 
     #[test]
     fn malformed_inputs_fail_closed() {
-        assert_eq!(lagged_histogram_mutual_information_bits(&[], &[], 2, &[0]), Err(LaggedInformationError::EmptyInput));
-        assert_eq!(lagged_histogram_mutual_information_bits(&[0.0], &[0, 1], 2, &[0]), Err(LaggedInformationError::LengthMismatch { observed: 1, hidden_state: 2 }));
-        assert_eq!(lagged_histogram_mutual_information_bits(&[0.0], &[0], 1, &[0]), Err(LaggedInformationError::TooFewBins { bins: 1 }));
+        assert_eq!(
+            lagged_histogram_mutual_information_bits(&[], &[], 2, &[0]),
+            Err(LaggedInformationError::EmptyInput)
+        );
+        assert_eq!(
+            lagged_histogram_mutual_information_bits(&[0.0], &[0, 1], 2, &[0]),
+            Err(LaggedInformationError::LengthMismatch {
+                observed: 1,
+                hidden_state: 2
+            })
+        );
+        assert_eq!(
+            lagged_histogram_mutual_information_bits(&[0.0], &[0], 1, &[0]),
+            Err(LaggedInformationError::TooFewBins { bins: 1 })
+        );
     }
 }
