@@ -205,8 +205,8 @@ pub fn permutation_mutual_information_null(
     }
 
     let surrogate_mean_mutual_information_bits = surrogate_sum / permutations as f64;
-    let permutation_p_value = (exceedances_at_or_above_observed as f64 + 1.0)
-        / (permutations as f64 + 1.0);
+    let permutation_p_value =
+        (exceedances_at_or_above_observed as f64 + 1.0) / (permutations as f64 + 1.0);
 
     Ok(MutualInformationPermutationNull {
         observed_mutual_information_bits,
