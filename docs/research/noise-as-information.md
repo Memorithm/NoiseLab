@@ -67,6 +67,12 @@ The current estimator is a histogram plug-in estimator. It is not an exact conti
 
 `bins`, `permutations` and `seed` are protocol inputs and must be preregistered. A small permutation p-value rejects only the declared exchangeable-label null under this histogram estimator. It does **not** establish causality, mechanism, a universal information property, or an information-preserving denoiser. Temporal data with autocorrelation generally require a structure-preserving null rather than unrestricted label permutation; this Stage 0.1 primitive must not be used to erase that distinction.
 
+## Stage 0.2 structure-preserving cyclic-shift null
+
+`cyclic_shift_mutual_information_null` supplies the first bounded time-series surrogate for cases where unrestricted label exchangeability is not defensible. The observation series stays fixed while each preregistered non-zero offset circularly rotates the **entire hidden-state sequence**, preserving its label marginal and circular lag organization. Duplicate, zero and out-of-range offsets fail closed; the exact offset list and every surrogate MI score are retained in declaration order.
+
+The returned `(1 + exceedances) / (1 + shifts)` quantity is named a **corrected tail fraction**, not an unconditional p-value. Circular wrapping and the chosen offsets must be scientifically justified and frozen before outcomes are inspected. Periodic structure can legitimately preserve high MI under some shifts—for example a half-period binary phase inversion—and that remains null evidence rather than being forced toward independence. This primitive does not establish causality or solve nonstationarity, boundary effects, lag selection or conditional information.
+
 ## Required experimental protocol
 
 For a candidate noise-like component `N`, hidden/system state `Z` and transformation `T`, record at minimum:
@@ -80,7 +86,7 @@ delta_I = I(T(N); Z) - I(N; Z)
 
 alongside the conventional task objective, raw data and transformation parameters.
 
-When the unrestricted permutation null is scientifically admissible, also retain its `bins`, `permutations`, `seed`, complete surrogate score sequence, exceedance count and corrected p-value. If exchangeability is not defensible, declare the structure-preserving null instead of silently applying the unrestricted permutation primitive.
+When the unrestricted permutation null is scientifically admissible, also retain its `bins`, `permutations`, `seed`, complete surrogate score sequence, exceedance count and corrected p-value. For a cyclic-shift null, retain the preregistered offset list, complete surrogate scores, exceedance count and corrected tail fraction, and justify circular wrapping. If neither exchangeability nor circular shifting is defensible, declare another structure-preserving null instead of silently applying either primitive.
 
 A denoiser is not considered information-preserving merely because it improves SNR or visual smoothness. Conversely, a positive mutual-information estimate is not sufficient to establish mechanism or causality.
 
@@ -99,7 +105,7 @@ Every confirmatory experiment should include:
 The Stage 0 histogram diagnostic and Stage 0.1 unrestricted permutation null are calibration layers. Subsequent work should compare stronger estimators and system classes without replacing these known-answer baselines:
 
 1. lagged and conditional information for dynamical systems;
-2. structure-preserving surrogate nulls for autocorrelated/time-series data;
+2. richer structure-preserving surrogate families beyond the Stage 0.2 cyclic-shift null, especially for nonstationary and noncircular records;
 3. information retention across frequency-selective filters;
 4. hidden-state inference from oscillator, bistable, FitzHugh-Nagumo and laser residuals;
 5. attention/RoPE/FLAT and KV-state experiments where perturbations may expose otherwise hidden internal state;
