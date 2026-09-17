@@ -16,6 +16,7 @@ pub mod fhn;
 pub mod fhn_horizon;
 pub mod fhn_stage0;
 pub mod information;
+pub mod lagged_information;
 pub mod langevin;
 pub mod laser_calibration;
 pub mod preregistered;
@@ -70,6 +71,10 @@ pub use information::{
     MutualInformationPermutationNull, MutualInformationSpectralNull, NoiseInformationAudit,
     MAX_INFORMATION_CYCLIC_SHIFTS, MAX_INFORMATION_PERMUTATIONS,
     MAX_INFORMATION_SPECTRAL_SURROGATES,
+};
+pub use lagged_information::{
+    lagged_histogram_mutual_information_bits, LaggedInformationError, LaggedMutualInformationPoint,
+    LaggedMutualInformationScan,
 };
 pub use langevin::{
     calibrate_kramers_matching, coherent_switching_response, simulate_double_well,
