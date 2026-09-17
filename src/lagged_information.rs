@@ -31,6 +31,10 @@ pub enum LaggedInformationError {
         index: usize,
         value: f64,
     },
+    UnrepresentableObservationRange {
+        minimum: f64,
+        maximum: f64,
+    },
 }
 
 impl Display for LaggedInformationError {
@@ -43,6 +47,10 @@ impl Display for LaggedInformationError {
             Self::InvalidLag { lag, samples } => write!(f, "lag {lag} leaves no aligned samples for a {samples}-sample series"),
             Self::DuplicateLag { lag } => write!(f, "lag {lag} is duplicated"),
             Self::NonFiniteObservation { index, value } => write!(f, "observation at index {index} is not finite: {value}"),
+            Self::UnrepresentableObservationRange { minimum, maximum } => write!(
+                f,
+                "observation range cannot be represented safely: minimum={minimum}, maximum={maximum}"
+            ),
         }
     }
 }
@@ -165,11 +173,26 @@ fn quantize_full_observation(
     if minimum == maximum {
         return Ok(vec![0; observed.len()]);
     }
-    let width = (maximum - minimum) / bins as f64;
+    // Normalize before subtraction so a finite span such as [-1e308, 1e308]
+    // cannot overflow to infinity. If distinct finite endpoints collapse after
+    // normalization, fail closed instead of silently assigning the wrong bin.
+    let scale = minimum.abs().max(maximum.abs());
+    if !scale.is_finite() || scale == 0.0 {
+        return Err(LaggedInformationError::UnrepresentableObservationRange { minimum, maximum });
+    }
+    let normalized_minimum = minimum / scale;
+    let normalized_maximum = maximum / scale;
+    let normalized_span = normalized_maximum - normalized_minimum;
+    if !normalized_span.is_finite() || normalized_span <= 0.0 {
+        return Err(LaggedInformationError::UnrepresentableObservationRange { minimum, maximum });
+    }
+
     Ok(observed
         .iter()
         .map(|&value| {
-            let scaled = ((value - minimum) / width).floor();
+            let normalized = value / scale;
+            let scaled =
+                ((normalized - normalized_minimum) / normalized_span * bins as f64).floor();
             if scaled <= 0.0 {
                 0
             } else if scaled >= bins as f64 {
@@ -245,6 +268,14 @@ mod tests {
         assert_close(scan.points[0].mutual_information_bits, 0.0);
         assert!(scan.points[1].mutual_information_bits > 0.5);
         assert_eq!(scan.points[1].aligned_samples, 7);
+    }
+
+    #[test]
+    fn extreme_finite_span_does_not_overflow_quantization() {
+        let hidden = [0, 1];
+        let observed = [-1.0e308, 1.0e308];
+        let scan = lagged_histogram_mutual_information_bits(&observed, &hidden, 2, &[0]).unwrap();
+        assert_close(scan.points[0].mutual_information_bits, 1.0);
     }
 
     #[test]
