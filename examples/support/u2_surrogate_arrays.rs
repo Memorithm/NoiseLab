@@ -377,10 +377,8 @@ fn decode_binary64(bytes: &[u8], expected_values: usize) -> io::Result<Vec<f64>>
     values
         .try_reserve_exact(expected_values)
         .map_err(|_| invalid_data("unable to allocate U2 replay values"))?;
-    for chunk in bytes.chunks_exact(8) {
-        let mut word = [0u8; 8];
-        word.copy_from_slice(chunk);
-        let value = f64::from_bits(u64::from_le_bytes(word));
+    for word in bytes.as_chunks::<8>().0 {
+        let value = f64::from_bits(u64::from_le_bytes(*word));
         if !value.is_finite() {
             return Err(invalid_data("non-finite archived U2 surrogate value"));
         }
