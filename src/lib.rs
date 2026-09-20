@@ -20,6 +20,7 @@ pub mod information;
 pub mod lagged_information;
 pub mod langevin;
 pub mod laser_calibration;
+pub mod noise_process;
 pub mod preregistered;
 pub mod protocol_provenance;
 pub mod report_mode;
@@ -89,6 +90,7 @@ pub use laser_calibration::{
     calibrate_laser_relaxation, LaserCalibrationError, LaserRelaxationCalibration,
     LaserRingMeasurement,
 };
+pub use noise_process::{NoiseProcessError, NoiseProcessSpec, OrnsteinUhlenbeckNoise};
 pub use preregistered::{
     BistableStage0V2, FhnCoherenceStage0, BISTABLE_STAGE0_V2_GRID_FACTORS,
     BISTABLE_STAGE0_V2_PROTOCOL_BLOB_SHA, BISTABLE_STAGE0_V2_SEEDS,
