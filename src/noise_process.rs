@@ -77,13 +77,15 @@ impl OrnsteinUhlenbeckNoise {
         // is sigma^2 / (2 * theta).  Convert the public stationary scale to
         // the diffusion coefficient expected by SciRust.
         let diffusion_sigma = self.stationary_stddev * (2.0 * self.theta).sqrt();
+        // SciRust includes the initial state in the returned path, so request
+        // one fewer transition to honor the public sample-count contract.
         ornstein_uhlenbeck_path(
             initial_state,
             self.theta,
             0.0,
             diffusion_sigma,
             self.dt,
-            samples,
+            samples - 1,
             self.seed ^ PATH_SEED_SALT,
         )
         .map_err(NoiseProcessError::Upstream)
