@@ -183,7 +183,8 @@ mod tests {
     fn zero_scale_is_exact_zero_for_both_process_families() {
         let white = NoiseProcessSpec::gaussian_white(0.0, 42).unwrap();
         let ou = NoiseProcessSpec::ornstein_uhlenbeck(0.0, 0.8, 0.05, 99).unwrap();
-        assert!(white.generate(64).unwrap().iter().all(|&value| value == 0.0));
+        let white_values = white.generate(64).unwrap();
+        assert!(white_values.iter().all(|&value| value == 0.0));
         assert!(ou.generate(64).unwrap().iter().all(|&value| value == 0.0));
     }
 
