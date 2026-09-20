@@ -19,8 +19,8 @@ pub mod fhn_stage0;
 pub mod information;
 pub mod lagged_information;
 pub mod langevin;
-pub mod noise_process;
 pub mod laser_calibration;
+pub mod noise_process;
 pub mod preregistered;
 pub mod protocol_provenance;
 pub mod report_mode;
@@ -97,9 +97,7 @@ pub use preregistered::{
     FHN_COHERENCE_STAGE0_PROTOCOL_BLOB_SHA, FHN_COHERENCE_STAGE0_SEEDS,
     FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT,
 };
-pub use noise_process::{
-    NoiseProcessError, NoiseProcessSpec, OrnsteinUhlenbeckNoise,
-};
+pub use noise_process::{NoiseProcessError, NoiseProcessSpec, OrnsteinUhlenbeckNoise};
 pub use protocol_provenance::{
     validate_protocol_provenance, GitIdentityKind, ProtocolProvenance, ProtocolProvenanceError,
     PROTOCOL_PROVENANCE,
