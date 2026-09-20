@@ -90,6 +90,7 @@ pub use laser_calibration::{
     calibrate_laser_relaxation, LaserCalibrationError, LaserRelaxationCalibration,
     LaserRingMeasurement,
 };
+pub use noise_process::{NoiseProcessError, NoiseProcessSpec, OrnsteinUhlenbeckNoise};
 pub use preregistered::{
     BistableStage0V2, FhnCoherenceStage0, BISTABLE_STAGE0_V2_GRID_FACTORS,
     BISTABLE_STAGE0_V2_PROTOCOL_BLOB_SHA, BISTABLE_STAGE0_V2_SEEDS,
@@ -97,7 +98,6 @@ pub use preregistered::{
     FHN_COHERENCE_STAGE0_PROTOCOL_BLOB_SHA, FHN_COHERENCE_STAGE0_SEEDS,
     FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT,
 };
-pub use noise_process::{NoiseProcessError, NoiseProcessSpec, OrnsteinUhlenbeckNoise};
 pub use protocol_provenance::{
     validate_protocol_provenance, GitIdentityKind, ProtocolProvenance, ProtocolProvenanceError,
     PROTOCOL_PROVENANCE,
