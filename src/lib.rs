@@ -19,6 +19,7 @@ pub mod fhn_stage0;
 pub mod information;
 pub mod lagged_information;
 pub mod langevin;
+pub mod noise_process;
 pub mod laser_calibration;
 pub mod preregistered;
 pub mod protocol_provenance;
