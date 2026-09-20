@@ -96,6 +96,9 @@ pub use preregistered::{
     FHN_COHERENCE_STAGE0_PROTOCOL_BLOB_SHA, FHN_COHERENCE_STAGE0_SEEDS,
     FHN_COHERENCE_STAGE0_UNCERTAINTY_WEIGHT,
 };
+pub use noise_process::{
+    NoiseProcessError, NoiseProcessSpec, OrnsteinUhlenbeckNoise,
+};
 pub use protocol_provenance::{
     validate_protocol_provenance, GitIdentityKind, ProtocolProvenance, ProtocolProvenanceError,
     PROTOCOL_PROVENANCE,
