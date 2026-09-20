@@ -114,8 +114,7 @@ impl NoiseProcessSpec {
         dt: f64,
         seed: u64,
     ) -> Result<Self, NoiseProcessError> {
-        OrnsteinUhlenbeckNoise::new(stationary_stddev, theta, dt, seed)
-            .map(Self::OrnsteinUhlenbeck)
+        OrnsteinUhlenbeckNoise::new(stationary_stddev, theta, dt, seed).map(Self::OrnsteinUhlenbeck)
     }
 
     /// Generate the selected reproducible process.
