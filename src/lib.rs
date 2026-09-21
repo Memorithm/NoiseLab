@@ -8,6 +8,7 @@
 #![forbid(unsafe_code)]
 
 pub mod attention;
+pub mod attention_state_information;
 pub mod bistable_stage0;
 pub mod calibration;
 pub mod calibration_evidence;
@@ -44,8 +45,21 @@ pub mod universality_u2;
 pub mod universality_u2_panel;
 
 pub use attention::{
-    evaluate_flat_rope_gaussian_perturbation, flat_rope_control, AttentionExperimentError,
-    AttentionNoiseSite, AttentionPerturbationResponse, AttentionPerturbationSpec,
+    evaluate_flat_rope_gaussian_perturbation, evaluate_flat_rope_gaussian_perturbation_pair,
+    flat_rope_control, per_query_abs_lse_delta, per_query_mean_abs_output_delta,
+    AttentionExperimentError, AttentionNoiseSite, AttentionPerturbationPair,
+    AttentionPerturbationResponse, AttentionPerturbationSpec,
+};
+pub use attention_state_information::{
+    calibrate_attention_state_family, run_attention_state_information_panel,
+    run_attention_state_information_panel_with_root, AttentionStateControlKind,
+    AttentionStateFamily, AttentionStateFamilyResult, AttentionStateInformationError,
+    AttentionStateKnownAnswerClass, AttentionStatePanelResult, AttentionStateProvenance,
+    ATTENTION_STATE_BINS, ATTENTION_STATE_FLAT_REVISION,
+    ATTENTION_STATE_IDENTITY_ABS_DELTA_MAX_BITS, ATTENTION_STATE_INJECTION_AMPLITUDE,
+    ATTENTION_STATE_LABEL_BLOCK, ATTENTION_STATE_MODULE, ATTENTION_STATE_NEGATIVE_MI_MAX_BITS,
+    ATTENTION_STATE_NOISE_STDDEV, ATTENTION_STATE_PANEL_FAMILIES,
+    ATTENTION_STATE_POSITIVE_MI_MIN_BITS, ATTENTION_STATE_SAMPLES, ATTENTION_STATE_SEED_ROOT,
 };
 pub use bistable_stage0::{
     classify_bistable_stage0, run_bistable_kramers_stage0, BestSampledSummary,

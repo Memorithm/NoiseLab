@@ -119,6 +119,26 @@ When enabled, a Stage 0.5 identity filter audit on the positive pair must keep `
 
 Honest limitations: synthetic known-answer injection is **not** natural-system discovery; a pass does not establish causality, mechanism, universality, or that unlabelled residuals from the same plants carry recoverable state. Confirmatory science campaigns must preregister separately and must not retune Stage 0.6 thresholds after inspecting outcomes.
 
+
+## Stage 0.7 attention/FLAT state information calibration
+
+`attention_state_information` wires the FLAT-ATTENTION RoPE/GQA perturbation controls in `attention` to the Stage 0 equal-width histogram mutual-information estimator (and optionally the Stage 0.5 identity-filter audit). It is an exploratory **known-answer** calibration panel, not a claim that attention noise is informative in production models.
+
+Under a frozen tiny FLAT config (`batch=1`, `q_heads=2`, `kv_heads=1`, `seq_len=4`, `head_dim=4`) and frozen seeds, each preregistered family runs many deterministic clean/perturbed oracle pairs and concatenates a per-query residual feature series `R`:
+
+- **`kv_analogue_value_site_output_delta`** — Value-site mean-abs per-query context/output delta. FLAT's scalar oracle does not expose a persistent KV-cache API; true KV-state experiments are **deferred**. Value-site perturbation is the explicit **KV-analogue** (V writes the context path, is not RoPE-rotated, and leaves LSE unchanged).
+- **`query_site_lse_delta`** — Query-site absolute per-query LSE delta (attention-score normalizer path).
+- **`key_site_output_delta`** — Key-site mean-abs per-query context/output delta (RoPE-rotated key path).
+
+The panel then declares a balanced discrete label `Z` and evaluates two matched controls:
+
+1. **Positive (injected bit)** — unit-normalize `R`, then `N = R_unit + A · (2Z − 1)`; Stage 0 histogram MI must exceed a frozen lower threshold.
+2. **Negative (shuffled label)** — the same `N` with Fisher–Yates-shuffled `Z` under a frozen seed; MI must stay below a frozen upper threshold.
+
+When enabled, a Stage 0.5 identity filter audit on the positive pair must keep `delta_I ≈ 0` under frozen raw bin edges. Each family returns provenance (module, family, SciRust/FLAT revisions, seeds, bins, injection amplitude, noise site/stddev, feature rule, KV-handling note, thresholds) and a classification `KnownAnswerPassed` / `KnownAnswerFailed`. Protocol failures fail closed as errors rather than silent passes.
+
+Honest limitations: synthetic known-answer injection is **not** natural LLM discovery; a pass does not establish causality, mechanism, universality, beneficial attention noise, or that unlabelled FLAT perturbation responses carry recoverable state. Confirmatory science campaigns must preregister separately and must not retune Stage 0.7 thresholds after inspecting outcomes. No attention benefit claims are retuned by this stage.
+
 ## Required experimental protocol
 
 For a candidate noise-like component `N`, hidden/system state `Z` and transformation `T`, record at minimum:
@@ -154,7 +174,7 @@ The Stage 0 histogram diagnostic and Stage 0.1 unrestricted permutation null are
 2. richer structure-preserving surrogate families beyond the Stage 0.2 cyclic-shift and Stage 0.3 spectrum-matched controls, especially for nonstationary and noncircular records;
 3. confirmatory use of Stage 0.5 frequency-selective filter retention audits on dynamical residuals, with preregistered cutoffs and bin-count sensitivity (the calibration primitive itself is implemented);
 4. confirmatory use of Stage 0.6 residual-state known-answer calibration on dynamical residuals (the calibration panel itself is implemented); exploratory natural-system residual ↔ state studies remain separate and must not retune Stage 0.6 thresholds;
-5. attention/RoPE/FLAT and KV-state experiments where perturbations may expose otherwise hidden internal state;
+5. confirmatory use of Stage 0.7 attention/FLAT known-answer calibration (the calibration panel itself is implemented; true KV-cache state remains deferred and Value-site is the explicit KV-analogue); exploratory natural LLM / production-attention residual ↔ state studies remain separate and must not retune Stage 0.7 thresholds;
 6. transfer of reusable, domain-independent information-theory primitives to SciRust once their API and numerical behavior are qualified.
 
 No result from this axis should be described as proving that "noise is information" in general. The admissible claim is always tied to the declared system, state variable, estimator and protocol.
