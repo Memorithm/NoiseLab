@@ -17,6 +17,7 @@ pub mod evidence;
 pub mod fhn;
 pub mod fhn_horizon;
 pub mod fhn_stage0;
+pub mod filtered_information;
 pub mod information;
 pub mod lagged_information;
 pub mod langevin;
@@ -80,6 +81,12 @@ pub use fhn_horizon::{
     FHN_HORIZON_STAGE0_BURN_IN_STEPS, FHN_HORIZON_STAGE0_STEPS,
 };
 pub use fhn_stage0::{classify_fhn_stage0, FhnStage0Decision};
+pub use filtered_information::{
+    apply_frequency_selective_filter, filtered_histogram_mutual_information_bits,
+    FilteredInformationError, FilteredMutualInformationAudit, FrequencySelectiveFilterSpec,
+    FrozenEqualWidthBinning, MAX_FILTERED_INFORMATION_BUTTER_ORDER,
+    MAX_FILTERED_INFORMATION_FIR_TAPS,
+};
 pub use information::{
     audit_noise_information, cyclic_shift_mutual_information_null, discrete_entropy_bits,
     histogram_mutual_information_bits, permutation_mutual_information_null,
