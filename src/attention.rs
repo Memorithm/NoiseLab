@@ -60,6 +60,12 @@ pub struct AttentionPerturbationResponse {
 pub enum AttentionExperimentError {
     /// Gaussian standard deviation was negative, NaN, or infinite.
     InvalidNoiseStddev(f64),
+    /// Caller-supplied tensors did not match the declared grouped shape.
+    LengthMismatch {
+        tensor: &'static str,
+        expected: usize,
+        actual: usize,
+    },
     /// FLAT-ATTENTION rejected the shape, inputs, configuration, or execution.
     Flat(FlatAttentionError),
 }
@@ -70,6 +76,14 @@ impl Display for AttentionExperimentError {
             Self::InvalidNoiseStddev(value) => write!(
                 formatter,
                 "attention noise standard deviation must be finite and non-negative, got {value}"
+            ),
+            Self::LengthMismatch {
+                tensor,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "attention {tensor} length {actual} != expected {expected}"
             ),
             Self::Flat(error) => write!(
                 formatter,
@@ -99,6 +113,17 @@ pub fn flat_rope_control(
     forward_reference_grouped_rope(q, k, v, shape, config, rotary)
 }
 
+/// Clean and perturbed FLAT oracle tensors plus aggregate response metrics.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AttentionPerturbationPair {
+    /// Exact clean `forward_reference_grouped_rope` execution.
+    pub control: FlatAttentionOutput,
+    /// Perturbed execution under the declared site/seed/stddev.
+    pub perturbed: FlatAttentionOutput,
+    /// Aggregate RMS/max deltas between the two executions.
+    pub response: AttentionPerturbationResponse,
+}
+
 /// Compare one additive Gaussian tensor perturbation with the exact clean FLAT
 /// oracle execution.
 ///
@@ -115,6 +140,24 @@ pub fn evaluate_flat_rope_gaussian_perturbation(
     rotary: RotaryEmbeddingConfig,
     spec: AttentionPerturbationSpec,
 ) -> Result<AttentionPerturbationResponse, AttentionExperimentError> {
+    Ok(
+        evaluate_flat_rope_gaussian_perturbation_pair(q, k, v, shape, config, rotary, spec)?
+            .response,
+    )
+}
+
+/// Same as [`evaluate_flat_rope_gaussian_perturbation`], but also returns the
+/// clean and perturbed FLAT tensors so callers can derive per-query residual
+/// features without re-implementing the oracle intervention.
+pub fn evaluate_flat_rope_gaussian_perturbation_pair(
+    q: &[f32],
+    k: &[f32],
+    v: &[f32],
+    shape: GroupedAttentionShape,
+    config: FlatAttentionConfig,
+    rotary: RotaryEmbeddingConfig,
+    spec: AttentionPerturbationSpec,
+) -> Result<AttentionPerturbationPair, AttentionExperimentError> {
     if !spec.noise_stddev.is_finite() || spec.noise_stddev < 0.0 {
         return Err(AttentionExperimentError::InvalidNoiseStddev(
             spec.noise_stddev,
@@ -147,15 +190,84 @@ pub fn evaluate_flat_rope_gaussian_perturbation(
         delta_metrics(&control.output, &perturbed.output);
     let (lse_rms_delta, lse_max_abs_delta) = delta_metrics(&control.lse, &perturbed.lse);
 
-    Ok(AttentionPerturbationResponse {
-        site: spec.site,
-        noise_stddev: spec.noise_stddev,
-        seed: spec.seed,
-        output_rms_delta,
-        output_max_abs_delta,
-        lse_rms_delta,
-        lse_max_abs_delta,
+    Ok(AttentionPerturbationPair {
+        control,
+        perturbed,
+        response: AttentionPerturbationResponse {
+            site: spec.site,
+            noise_stddev: spec.noise_stddev,
+            seed: spec.seed,
+            output_rms_delta,
+            output_max_abs_delta,
+            lse_rms_delta,
+            lse_max_abs_delta,
+        },
     })
+}
+
+/// Per-query mean absolute context/output delta.
+///
+/// Layout matches FLAT LSE indexing: `[batch, q_heads, seq_len]`. Each entry is
+/// the mean absolute difference across `head_dim` of the corresponding output
+/// row. Length mismatches fail closed.
+pub fn per_query_mean_abs_output_delta(
+    control_output: &[f32],
+    perturbed_output: &[f32],
+    shape: GroupedAttentionShape,
+) -> Result<Vec<f64>, AttentionExperimentError> {
+    let expected = shape
+        .q_tensor_len()
+        .map_err(AttentionExperimentError::from)?;
+    if control_output.len() != expected || perturbed_output.len() != expected {
+        return Err(AttentionExperimentError::LengthMismatch {
+            tensor: "output",
+            expected,
+            actual: if control_output.len() != expected {
+                control_output.len()
+            } else {
+                perturbed_output.len()
+            },
+        });
+    }
+    let queries = shape.batch * shape.q_heads * shape.seq_len;
+    let head_dim = shape.head_dim;
+    let mut series = Vec::with_capacity(queries);
+    for query in 0..queries {
+        let start = query * head_dim;
+        let end = start + head_dim;
+        let mut abs_sum = 0.0f64;
+        for index in start..end {
+            abs_sum +=
+                (f64::from(perturbed_output[index]) - f64::from(control_output[index])).abs();
+        }
+        series.push(abs_sum / head_dim as f64);
+    }
+    Ok(series)
+}
+
+/// Per-query absolute LSE delta, layout `[batch, q_heads, seq_len]`.
+pub fn per_query_abs_lse_delta(
+    control_lse: &[f32],
+    perturbed_lse: &[f32],
+    shape: GroupedAttentionShape,
+) -> Result<Vec<f64>, AttentionExperimentError> {
+    let expected = shape.lse_len().map_err(AttentionExperimentError::from)?;
+    if control_lse.len() != expected || perturbed_lse.len() != expected {
+        return Err(AttentionExperimentError::LengthMismatch {
+            tensor: "lse",
+            expected,
+            actual: if control_lse.len() != expected {
+                control_lse.len()
+            } else {
+                perturbed_lse.len()
+            },
+        });
+    }
+    Ok(control_lse
+        .iter()
+        .zip(perturbed_lse)
+        .map(|(&left, &right)| (f64::from(right) - f64::from(left)).abs())
+        .collect())
 }
 
 fn add_gaussian_in_place(values: &mut [f32], stddev: f64, seed: u64) {
@@ -347,5 +459,49 @@ mod tests {
                 Err(AttentionExperimentError::InvalidNoiseStddev(_))
             ));
         }
+    }
+
+    #[test]
+    fn pair_api_matches_aggregate_response() {
+        let (q, k, v, shape, config, rotary) = case();
+        let spec = spec(AttentionNoiseSite::Query, 0.2, 99);
+        let response =
+            evaluate_flat_rope_gaussian_perturbation(&q, &k, &v, shape, config, rotary, spec)
+                .unwrap();
+        let pair =
+            evaluate_flat_rope_gaussian_perturbation_pair(&q, &k, &v, shape, config, rotary, spec)
+                .unwrap();
+        assert_eq!(response, pair.response);
+        let output_series =
+            per_query_mean_abs_output_delta(&pair.control.output, &pair.perturbed.output, shape)
+                .unwrap();
+        assert_eq!(
+            output_series.len(),
+            shape.batch * shape.q_heads * shape.seq_len
+        );
+        assert!(output_series.iter().any(|&value| value > 0.0));
+        let lse_series =
+            per_query_abs_lse_delta(&pair.control.lse, &pair.perturbed.lse, shape).unwrap();
+        assert_eq!(
+            lse_series.len(),
+            shape.batch * shape.q_heads * shape.seq_len
+        );
+        assert!(lse_series.iter().any(|&value| value > 0.0));
+    }
+
+    #[test]
+    fn per_query_helpers_fail_closed_on_length_mismatch() {
+        let (_, _, _, shape, _, _) = case();
+        assert!(matches!(
+            per_query_mean_abs_output_delta(&[0.0], &[0.0], shape),
+            Err(AttentionExperimentError::LengthMismatch {
+                tensor: "output",
+                ..
+            })
+        ));
+        assert!(matches!(
+            per_query_abs_lse_delta(&[0.0], &[0.0], shape),
+            Err(AttentionExperimentError::LengthMismatch { tensor: "lse", .. })
+        ));
     }
 }
