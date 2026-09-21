@@ -10,7 +10,12 @@ Both executables use the same `report_mode::ReportMode` selector. Their existing
 variable prefixes are retained:
 
 - U2: `NOISELAB_U2_FULL` and `NOISELAB_U2_SMOKE`;
-- FHN: `NOISELAB_FHN_HORIZON_FULL` and `NOISELAB_FHN_HORIZON_SMOKE`.
+- FHN: `NOISELAB_FHN_HORIZON_FULL` and `NOISELAB_FHN_HORIZON_SMOKE`;
+- Bistable Kramers Stage 0 v2: `NOISELAB_BISTABLE_FULL` and `NOISELAB_BISTABLE_SMOKE`
+  (`examples/bistable_kramers_stage0_report.rs`). Automated smoke-contract CI
+  still validates U2 and FHN only; the bistable reporter follows the same
+  flag/TSV metadata contract (`report_schema=1`, `scientific_claim_permitted`)
+  and must be invoked explicitly for smoke or full loads.
 
 Only `1`, `0`, `true` and `false` are accepted (case-insensitive words). Unset
 variables mean false; without FULL the default remains non-scientific smoke.

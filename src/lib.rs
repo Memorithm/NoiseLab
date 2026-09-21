@@ -8,6 +8,7 @@
 #![forbid(unsafe_code)]
 
 pub mod attention;
+pub mod bistable_stage0;
 pub mod calibration;
 pub mod calibration_evidence;
 pub mod calibration_ladder;
@@ -43,6 +44,16 @@ pub mod universality_u2_panel;
 pub use attention::{
     evaluate_flat_rope_gaussian_perturbation, flat_rope_control, AttentionExperimentError,
     AttentionNoiseSite, AttentionPerturbationResponse, AttentionPerturbationSpec,
+};
+pub use bistable_stage0::{
+    classify_bistable_stage0, run_bistable_kramers_stage0, BestSampledSummary,
+    BistableStage0AnalyticControls, BistableStage0Config, BistableStage0Decision,
+    BistableStage0DeterministicControl, BistableStage0Error, BistableStage0FalsificationStatus,
+    BistableStage0GridPoint, BistableStage0Mode, BistableStage0Result, BistableStage0Summary,
+    BISTABLE_STAGE0_BURN_IN_PERIODS, BISTABLE_STAGE0_KRAMERS_FACTOR_TOLERANCE,
+    BISTABLE_STAGE0_SMOKE_BURN_IN_PERIODS, BISTABLE_STAGE0_SMOKE_SEED_COUNT,
+    BISTABLE_STAGE0_SMOKE_TOTAL_PERIODS, BISTABLE_STAGE0_TOTAL_PERIODS,
+    BISTABLE_STAGE0_UNCERTAINTY_WEIGHT,
 };
 pub use calibration::{
     measure_steady_state_displacement_amplitude, sweep_linear_resonance, CalibrationError,

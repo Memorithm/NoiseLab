@@ -8,7 +8,7 @@ use crate::langevin::{DoubleWellLangevin, LangevinError, LangevinRun};
 use crate::resonance::matched_kramers_noise_intensity;
 
 /// Git blob SHA of `docs/research/bistable-kramers-stage0-v2.md` at protocol freeze.
-pub const BISTABLE_STAGE0_V2_PROTOCOL_BLOB_SHA: &str = "54cb4bfb9880e33117df3383864cb03e7bc706e2";
+pub const BISTABLE_STAGE0_V2_PROTOCOL_BLOB_SHA: &str = "15c30f1aa7a0489346ca5fcb21abb7f86e8cef43";
 
 /// Paired seeds frozen by the Stage 0 v2 preregistration.
 pub const BISTABLE_STAGE0_V2_SEEDS: [u64; 16] = [
