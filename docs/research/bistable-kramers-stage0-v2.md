@@ -1,10 +1,14 @@
 # Bistable Langevin / Kramers calibration — Stage 0 v2
 
-Status: PREREGISTERED PROTOCOL DRAFT. This document replaces the invalidated convention-mismatched preregistration only after it is merged. No bistable outcome may be inspected or used to retune this protocol before merge.
+Status: PREREGISTERED PROTOCOL — executable Stage 0 v2 runner available. This document replaces the invalidated convention-mismatched preregistration. The panel can be executed via `examples/bistable_kramers_stage0_report.rs` (`src/bistable_stage0.rs`). Smoke (`NOISELAB_BISTABLE_SMOKE` / default) is not scientific evidence; full load requires `NOISELAB_BISTABLE_FULL=1`. No Stage 0 v2 scientific results.md is claimed by shipping the runner alone.
 
 ## Provenance and implementation pin
 
-This protocol targets NoiseLab commit `d96b042fceb47210078aad441be548babe6a78da` and specifically the executable model in `src/langevin.rs` at that revision.
+Historical pin named in the original freeze text: NoiseLab commit `d96b042fceb47210078aad441be548babe6a78da` (not present in the current clone history). The executable model convention remains that of `src/langevin.rs`.
+
+### Pin-sync note (requalification)
+
+The runner and frozen factors in `src/preregistered.rs` / `src/bistable_stage0.rs` are requalified against current `main` (`src/langevin.rs`, SciRust pin in `Cargo.toml`) without forging outcomes under the missing historical SHA. Re-run the scientific panel under a retained producing commit before any calibration claim. Past references to `d96b042…` remain historically accurate as the original intended freeze identity, not as a reproducible object in this repository.
 
 The model convention is fixed to the implementation, not inferred from the invalidated Stage 0:
 
@@ -154,6 +158,25 @@ Before generating trajectories, the runner must record:
 The primary grid, seeds, model parameters, burn-in, metric and decision thresholds may not change after any Stage 0 v2 response is inspected. Any exploratory follow-up receives a new protocol identifier and cannot overwrite this evidence.
 
 Negative, equivalent and inconclusive results are retained.
+
+## Executable runner
+
+Library entry points:
+
+- `BistableStage0V2::primary()` — outcome-blind materialization of frozen model, run, seeds, analytic `D_K`, and positive-`D` grid;
+- `run_bistable_kramers_stage0` — panel including `D = 0`, primary forced grid, `A = 0` control, falsification preflight, and protocol-language classification;
+- `classify_bistable_stage0` — fail-closed decision helper (`H0NotRejected`, interior peak, mechanism compatibility, control/protocol failure).
+
+Report executable: `cargo run --example bistable_kramers_stage0_report`.
+
+Environment (same `report_mode` contract as FHN/U2):
+
+- `NOISELAB_BISTABLE_FULL` — scientific budget when `1`/`true`;
+- `NOISELAB_BISTABLE_SMOKE` — explicit smoke when `1`/`true`;
+- unset both → non-scientific smoke;
+- both enabled → error before any trajectory.
+
+Smoke abbreviates to `4` total / `1` burn-in forcing periods and the first `2` preregistered seeds. The positive-`D` multiplicative factors and analytic `D_K` are not retuned. The falsification regime at `f = 0.20` remains fail-closed when the analytic Kramers control has no positive finite solution (current frozen parameters).
 
 ## Transfer gates
 
