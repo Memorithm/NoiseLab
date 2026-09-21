@@ -26,6 +26,7 @@ pub mod noise_process;
 pub mod preregistered;
 pub mod protocol_provenance;
 pub mod report_mode;
+pub mod residual_state_information;
 pub mod resonance;
 pub mod scirust_bridge;
 pub mod spectral_null;
@@ -119,6 +120,16 @@ pub use preregistered::{
 pub use protocol_provenance::{
     validate_protocol_provenance, GitIdentityKind, ProtocolProvenance, ProtocolProvenanceError,
     PROTOCOL_PROVENANCE,
+};
+pub use residual_state_information::{
+    calibrate_residual_state_family, run_residual_state_information_panel,
+    run_residual_state_information_panel_with_root, ResidualStateControlKind, ResidualStateFamily,
+    ResidualStateFamilyResult, ResidualStateInformationError, ResidualStateKnownAnswerClass,
+    ResidualStatePanelResult, ResidualStateProvenance, RESIDUAL_STATE_BINS, RESIDUAL_STATE_BURN_IN,
+    RESIDUAL_STATE_IDENTITY_ABS_DELTA_MAX_BITS, RESIDUAL_STATE_INJECTION_AMPLITUDE,
+    RESIDUAL_STATE_LABEL_BLOCK, RESIDUAL_STATE_MODULE, RESIDUAL_STATE_NEGATIVE_MI_MAX_BITS,
+    RESIDUAL_STATE_PANEL_FAMILIES, RESIDUAL_STATE_POSITIVE_MI_MIN_BITS, RESIDUAL_STATE_SAMPLES,
+    RESIDUAL_STATE_SEED_ROOT,
 };
 pub use resonance::{
     detect_interior_response_peak, kramers_escape_rate,

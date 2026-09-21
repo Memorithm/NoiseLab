@@ -105,6 +105,20 @@ Known-answer controls in-tree include identity (exact zero delta under frozen bi
 
 Honest limitations: a signed `delta_I` is a finite-sample histogram association change under the declared `T`, not causal evidence, not proof that filtering removed physically useful information, not a claim that noise is information in general, and not authorization to retune cutoffs or bins after inspecting scores. Transient start-up of FIR/IIR filters is part of the declared intervention. Confirmatory work must freeze the filter family and report estimator sensitivity.
 
+
+## Stage 0.6 residual-state information calibration
+
+`residual_state_information` wires the existing oscillator, bistable Langevin, FitzHugh–Nagumo and semiconductor-laser residual plants to the Stage 0 equal-width histogram mutual-information estimator (and optionally the Stage 0.5 identity-filter audit). It is an exploratory **known-answer** panel, not a claim that natural residuals always encode hidden state.
+
+For each preregistered family the panel freezes parameters, seeds and extraction rules (shorter than Stage U2), declares a balanced discrete label `Z`, and evaluates two matched controls:
+
+1. **Positive (injected bit)** — unit-normalize `R`, then `N = R_unit + A · (2Z − 1)` so one labelled bit is present by construction; Stage 0 histogram MI must exceed a frozen lower threshold.
+2. **Negative (shuffled label)** — the same `N` with Fisher–Yates-shuffled `Z` under a frozen seed; MI must stay below a frozen upper threshold.
+
+When enabled, a Stage 0.5 identity filter audit on the positive pair must keep `delta_I ≈ 0` under frozen raw bin edges. Each family returns provenance (module, family, SciRust revision, seeds, bins, injection amplitude, extraction rule, thresholds) and a classification `KnownAnswerPassed` / `KnownAnswerFailed`. Protocol failures (length, bins, non-finite or degenerate residuals) fail closed as errors rather than silent passes.
+
+Honest limitations: synthetic known-answer injection is **not** natural-system discovery; a pass does not establish causality, mechanism, universality, or that unlabelled residuals from the same plants carry recoverable state. Confirmatory science campaigns must preregister separately and must not retune Stage 0.6 thresholds after inspecting outcomes.
+
 ## Required experimental protocol
 
 For a candidate noise-like component `N`, hidden/system state `Z` and transformation `T`, record at minimum:
@@ -139,7 +153,7 @@ The Stage 0 histogram diagnostic and Stage 0.1 unrestricted permutation null are
 1. conditional-information experiments on preregistered dynamical-system state/condition variables, building on the implemented calibration primitive and non-circular lagged association diagnostic;
 2. richer structure-preserving surrogate families beyond the Stage 0.2 cyclic-shift and Stage 0.3 spectrum-matched controls, especially for nonstationary and noncircular records;
 3. confirmatory use of Stage 0.5 frequency-selective filter retention audits on dynamical residuals, with preregistered cutoffs and bin-count sensitivity (the calibration primitive itself is implemented);
-4. hidden-state inference from oscillator, bistable, FitzHugh-Nagumo and laser residuals;
+4. confirmatory use of Stage 0.6 residual-state known-answer calibration on dynamical residuals (the calibration panel itself is implemented); exploratory natural-system residual ↔ state studies remain separate and must not retune Stage 0.6 thresholds;
 5. attention/RoPE/FLAT and KV-state experiments where perturbations may expose otherwise hidden internal state;
 6. transfer of reusable, domain-independent information-theory primitives to SciRust once their API and numerical behavior are qualified.
 
