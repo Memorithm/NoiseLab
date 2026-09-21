@@ -118,3 +118,7 @@ cargo fmt --all -- --check
 NoiseLab is licensed under the PolyForm Noncommercial License 1.0.0. See `LICENSE.md`.
 
 Pinned dependencies retain their own license terms; depending on an upstream Memorithm crate does not relicense that upstream code as part of NoiseLab.
+
+## BANC v888 sparse-dynamics perturbation track
+
+The V888-only perturbation bootstrap is [`docs/V888_CONNECTOME_BOOTSTRAP.md`](docs/V888_CONNECTOME_BOOTSTRAP.md). It adds replayable event-timing, structural and stochastic perturbations, mandatory topology-matched controls, information-retention diagnostics and bounded stochastic-resonance experiments over sparse recurrent systems. Raw BANC data remains external; reusable graph/event primitives stay owned by SciRust.
