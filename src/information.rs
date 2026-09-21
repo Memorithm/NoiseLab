@@ -562,7 +562,7 @@ fn validate_inputs(
     Ok(())
 }
 
-fn observation_range(observed: &[f64]) -> Result<(f64, f64), InformationError> {
+pub(crate) fn observation_range(observed: &[f64]) -> Result<(f64, f64), InformationError> {
     let mut min = f64::INFINITY;
     let mut max = f64::NEG_INFINITY;
     for (index, &value) in observed.iter().enumerate() {
@@ -575,7 +575,7 @@ fn observation_range(observed: &[f64]) -> Result<(f64, f64), InformationError> {
     Ok((min, max))
 }
 
-fn quantize_equal_width_with_reference_range(
+pub(crate) fn quantize_equal_width_with_reference_range(
     observed: &[f64],
     bins: usize,
     reference_min: f64,
@@ -638,7 +638,7 @@ pub(crate) fn quantize_equal_width(
         .collect())
 }
 
-fn mutual_information_from_quantized(
+pub(crate) fn mutual_information_from_quantized(
     quantized: &[usize],
     hidden_state: &[usize],
     bins: usize,

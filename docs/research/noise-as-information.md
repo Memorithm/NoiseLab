@@ -87,6 +87,24 @@ The observed series defines the equal-width histogram range once; every phase-ra
 
 This diagnostic is descriptive and does not infer causal direction. Searching a large lag range after inspecting outcomes creates a selection problem; confirmatory use must preregister the lag set or declare a separate multiplicity/selection procedure. Different lags also use different aligned sample counts, which must remain visible rather than being silently treated as equal evidence.
 
+## Stage 0.5 information retention across frequency-selective filters
+
+`filtered_histogram_mutual_information_bits` measures how a preregistered linear frequency-selective transformation `T` changes the frozen equal-width histogram mutual information between a noise-like observation `N` and a discrete hidden/system state `Z`:
+
+```text
+I(N; Z)
+I(T(N); Z)
+delta_I = I(T(N); Z) - I(N; Z)
+```
+
+Supported interventions reuse pinned SciRust DSP primitives rather than inventing FFT filters in NoiseLab: identity, Hann-windowed FIR low/high/band-pass (`fir_lowpass` / `fir_highpass` + `lfilter`; band-pass is an explicit high-pass then low-pass cascade), and Butterworth SOS low/high/band-pass (`butter_*_sos` + `sos_filter`; band-pass likewise cascaded). Cutoffs are Nyquist-normalized in `(0, 1)` exactly as in SciRust.
+
+**Binning policy (frozen from raw).** Equal-width bin edges are taken once from the raw observation and reused for the filtered series. Values outside the raw range clamp to the edge bins. This makes Stage 0.5 an intervention audit: the estimator is not retuned after seeing `T(N)`. Stage 0 `audit_noise_information` remains available and still quantizes raw and transformed series independently; Stage 0.5 does not replace it.
+
+Known-answer controls in-tree include identity (exact zero delta under frozen bins), a low-frequency amplitude-coded bit destroyed by high-pass (negative delta), and an independence construction whose raw and filtered MI stay near zero. Filter parameters, bin count and the freeze policy must be preregistered before outcome inspection.
+
+Honest limitations: a signed `delta_I` is a finite-sample histogram association change under the declared `T`, not causal evidence, not proof that filtering removed physically useful information, not a claim that noise is information in general, and not authorization to retune cutoffs or bins after inspecting scores. Transient start-up of FIR/IIR filters is part of the declared intervention. Confirmatory work must freeze the filter family and report estimator sensitivity.
+
 ## Required experimental protocol
 
 For a candidate noise-like component `N`, hidden/system state `Z` and transformation `T`, record at minimum:
@@ -120,7 +138,7 @@ The Stage 0 histogram diagnostic and Stage 0.1 unrestricted permutation null are
 
 1. conditional-information experiments on preregistered dynamical-system state/condition variables, building on the implemented calibration primitive and non-circular lagged association diagnostic;
 2. richer structure-preserving surrogate families beyond the Stage 0.2 cyclic-shift and Stage 0.3 spectrum-matched controls, especially for nonstationary and noncircular records;
-3. information retention across frequency-selective filters;
+3. confirmatory use of Stage 0.5 frequency-selective filter retention audits on dynamical residuals, with preregistered cutoffs and bin-count sensitivity (the calibration primitive itself is implemented);
 4. hidden-state inference from oscillator, bistable, FitzHugh-Nagumo and laser residuals;
 5. attention/RoPE/FLAT and KV-state experiments where perturbations may expose otherwise hidden internal state;
 6. transfer of reusable, domain-independent information-theory primitives to SciRust once their API and numerical behavior are qualified.
