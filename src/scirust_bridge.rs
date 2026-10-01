@@ -5,12 +5,46 @@
 //! narrow boundary through which the first NoiseLab experiments consume those
 //! upstream primitives.
 
-use scirust_signal::{hanning, psd_centroid, psd_flatness, psd_spread, welch_psd};
+use scirust_signal::{psd_centroid, psd_flatness, psd_spread, welch_psd};
 use scirust_sim::{stochastic::ou_path, SplitMix64};
 use std::error::Error;
+use std::f64::consts::PI;
 use std::fmt::{Display, Formatter};
+use std::mem::size_of;
 
 const MAX_SAMPLES: usize = 10_000_000;
+const DEFAULT_MAX_SPECTRAL_SEGMENT_SAMPLES: usize = 1 << 20;
+const DEFAULT_MAX_SPECTRAL_WORKING_BYTES: usize = 64 * 1024 * 1024;
+const DEFAULT_MAX_SPECTRAL_WORK_UNITS: usize = 1_000_000_000;
+
+/// Admission limits for a Welch spectral characterization.
+///
+/// `max_working_bytes` bounds the peak allocations implied by the pinned
+/// SciRust implementation (window, accumulator, shaped segment, complex FFT
+/// buffer and per-segment PSD). `max_work_units` bounds the number of samples
+/// scanned plus the conservative radix-2 FFT work estimate over all segments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SpectralLimits {
+    /// Maximum number of input samples read by one request.
+    pub max_signal_samples: usize,
+    /// Maximum number of samples in one FFT segment.
+    pub max_segment_samples: usize,
+    /// Maximum admitted peak working-set bytes.
+    pub max_working_bytes: usize,
+    /// Maximum admitted conservative work units.
+    pub max_work_units: usize,
+}
+
+impl Default for SpectralLimits {
+    fn default() -> Self {
+        Self {
+            max_signal_samples: MAX_SAMPLES,
+            max_segment_samples: DEFAULT_MAX_SPECTRAL_SEGMENT_SAMPLES,
+            max_working_bytes: DEFAULT_MAX_SPECTRAL_WORKING_BYTES,
+            max_work_units: DEFAULT_MAX_SPECTRAL_WORK_UNITS,
+        }
+    }
+}
 
 /// Invalid request supplied to a NoiseLab/SciRust adapter.
 #[derive(Debug, Clone, PartialEq)]
@@ -23,6 +57,19 @@ pub enum NoiseInputError {
     TooManySamples { requested: usize, maximum: usize },
     /// A spectral request is structurally invalid.
     InvalidSpectrumRequest(&'static str),
+    /// A spectral request exceeds one of the configured admission limits.
+    SpectralLimitExceeded {
+        resource: &'static str,
+        requested: usize,
+        maximum: usize,
+    },
+    /// A spectral resource estimate overflowed and was rejected fail-closed.
+    SpectralBudgetOverflow(&'static str),
+    /// A bounded adapter-owned allocation failed.
+    AllocationFailed {
+        resource: &'static str,
+        requested_bytes: usize,
+    },
     /// SciRust rejected the request.
     Upstream(String),
 }
@@ -39,6 +86,24 @@ impl Display for NoiseInputError {
                 )
             }
             Self::InvalidSpectrumRequest(message) => f.write_str(message),
+            Self::SpectralLimitExceeded {
+                resource,
+                requested,
+                maximum,
+            } => write!(
+                f,
+                "spectral {resource} request {requested} exceeds configured maximum {maximum}"
+            ),
+            Self::SpectralBudgetOverflow(resource) => {
+                write!(f, "spectral {resource} estimate overflowed")
+            }
+            Self::AllocationFailed {
+                resource,
+                requested_bytes,
+            } => write!(
+                f,
+                "failed to allocate {requested_bytes} bytes for spectral {resource}"
+            ),
             Self::Upstream(message) => write!(f, "SciRust rejected request: {message}"),
         }
     }
@@ -128,6 +193,23 @@ pub fn spectral_signature(
     segment_len: usize,
     overlap: usize,
 ) -> Result<ScirustSpectralSignature, NoiseInputError> {
+    spectral_signature_with_limits(
+        signal,
+        sample_rate_hz,
+        segment_len,
+        overlap,
+        SpectralLimits::default(),
+    )
+}
+
+/// Characterize a real-valued series under explicit allocation and work limits.
+pub fn spectral_signature_with_limits(
+    signal: &[f64],
+    sample_rate_hz: f64,
+    segment_len: usize,
+    overlap: usize,
+    limits: SpectralLimits,
+) -> Result<ScirustSpectralSignature, NoiseInputError> {
     if !sample_rate_hz.is_finite() {
         return Err(NoiseInputError::NonFinite("sample_rate_hz"));
     }
@@ -144,8 +226,15 @@ pub fn spectral_signature(
             "overlap must be strictly less than segment_len",
         ));
     }
+    if segment_len > signal.len() {
+        return Err(NoiseInputError::InvalidSpectrumRequest(
+            "segment_len must not exceed signal length",
+        ));
+    }
 
-    let window = hanning(segment_len);
+    admit_spectral_request(signal.len(), segment_len, overlap, limits)?;
+
+    let window = fallible_hanning(segment_len)?;
     let estimate = welch_psd(signal, segment_len, overlap, &window)
         .map_err(|error| NoiseInputError::Upstream(error.to_string()))?;
 
@@ -161,6 +250,87 @@ pub fn spectral_signature(
         spread_hz,
         flatness,
     })
+}
+
+fn admit_spectral_request(
+    signal_len: usize,
+    segment_len: usize,
+    overlap: usize,
+    limits: SpectralLimits,
+) -> Result<(), NoiseInputError> {
+    require_spectral_limit("signal samples", signal_len, limits.max_signal_samples)?;
+    require_spectral_limit(
+        "segment samples",
+        segment_len,
+        limits.max_segment_samples,
+    )?;
+
+    let half_spectrum_len = segment_len
+        .checked_div(2)
+        .and_then(|value| value.checked_add(1))
+        .ok_or(NoiseInputError::SpectralBudgetOverflow("working bytes"))?;
+    let real_buffers = segment_len
+        .checked_mul(2)
+        .and_then(|value| value.checked_add(half_spectrum_len.checked_mul(2)?))
+        .and_then(|value| value.checked_mul(size_of::<f64>()))
+        .ok_or(NoiseInputError::SpectralBudgetOverflow("working bytes"))?;
+    let fft_buffer = segment_len
+        .checked_mul(size_of::<f64>().checked_mul(2).expect("two f64 values fit"))
+        .ok_or(NoiseInputError::SpectralBudgetOverflow("working bytes"))?;
+    let working_bytes = real_buffers
+        .checked_add(fft_buffer)
+        .ok_or(NoiseInputError::SpectralBudgetOverflow("working bytes"))?;
+    require_spectral_limit("working bytes", working_bytes, limits.max_working_bytes)?;
+
+    let hop = segment_len - overlap;
+    let segments = 1 + (signal_len - segment_len) / hop;
+    let fft_stages = segment_len.ilog2() as usize;
+    let per_segment_work = segment_len
+        .checked_mul(fft_stages.checked_add(3).ok_or(
+            NoiseInputError::SpectralBudgetOverflow("work units"),
+        )?)
+        .ok_or(NoiseInputError::SpectralBudgetOverflow("work units"))?;
+    let work_units = segments
+        .checked_mul(per_segment_work)
+        .and_then(|value| value.checked_add(signal_len))
+        .and_then(|value| value.checked_add(segment_len))
+        .ok_or(NoiseInputError::SpectralBudgetOverflow("work units"))?;
+    require_spectral_limit("work units", work_units, limits.max_work_units)
+}
+
+fn require_spectral_limit(
+    resource: &'static str,
+    requested: usize,
+    maximum: usize,
+) -> Result<(), NoiseInputError> {
+    if requested > maximum {
+        return Err(NoiseInputError::SpectralLimitExceeded {
+            resource,
+            requested,
+            maximum,
+        });
+    }
+    Ok(())
+}
+
+fn fallible_hanning(segment_len: usize) -> Result<Vec<f64>, NoiseInputError> {
+    let requested_bytes = segment_len
+        .checked_mul(size_of::<f64>())
+        .ok_or(NoiseInputError::SpectralBudgetOverflow("window bytes"))?;
+    let mut window = Vec::new();
+    window
+        .try_reserve_exact(segment_len)
+        .map_err(|_| NoiseInputError::AllocationFailed {
+            resource: "Hann window",
+            requested_bytes,
+        })?;
+
+    let denominator = (segment_len - 1) as f64;
+    window.extend(
+        (0..segment_len)
+            .map(|index| 0.5 * (1.0 - (2.0 * PI * index as f64 / denominator).cos())),
+    );
+    Ok(window)
 }
 
 fn validate_sample_count(samples: usize) -> Result<(), NoiseInputError> {
@@ -216,5 +386,89 @@ mod tests {
         assert!(signature.centroid_hz.is_finite());
         assert!(signature.spread_hz.is_finite());
         assert!(signature.flatness.is_finite());
+    }
+
+    #[test]
+    fn spectral_signature_rejects_segment_longer_than_signal() {
+        let signal = [0.0; 8];
+        assert_eq!(
+            spectral_signature(&signal, 1.0, 16, 0),
+            Err(NoiseInputError::InvalidSpectrumRequest(
+                "segment_len must not exceed signal length"
+            ))
+        );
+    }
+
+    #[test]
+    fn spectral_limits_reject_segment_before_window_allocation() {
+        let signal = [0.0; 256];
+        let limits = SpectralLimits {
+            max_segment_samples: 128,
+            ..SpectralLimits::default()
+        };
+        assert_eq!(
+            spectral_signature_with_limits(&signal, 1.0, 256, 0, limits),
+            Err(NoiseInputError::SpectralLimitExceeded {
+                resource: "segment samples",
+                requested: 256,
+                maximum: 128,
+            })
+        );
+    }
+
+    #[test]
+    fn spectral_limits_reject_signal_read_budget() {
+        let signal = [0.0; 256];
+        let limits = SpectralLimits {
+            max_signal_samples: 128,
+            ..SpectralLimits::default()
+        };
+        assert_eq!(
+            spectral_signature_with_limits(&signal, 1.0, 128, 0, limits),
+            Err(NoiseInputError::SpectralLimitExceeded {
+                resource: "signal samples",
+                requested: 256,
+                maximum: 128,
+            })
+        );
+    }
+
+    #[test]
+    fn spectral_limits_reject_work_amplification_from_overlap() {
+        let signal = [0.0; 1024];
+        let limits = SpectralLimits {
+            max_work_units: 1_000,
+            ..SpectralLimits::default()
+        };
+        assert!(matches!(
+            spectral_signature_with_limits(&signal, 1.0, 256, 255, limits),
+            Err(NoiseInputError::SpectralLimitExceeded {
+                resource: "work units",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn spectral_limits_reject_working_set_before_window_allocation() {
+        let signal = [0.0; 256];
+        let limits = SpectralLimits {
+            max_working_bytes: 1_024,
+            ..SpectralLimits::default()
+        };
+        assert!(matches!(
+            spectral_signature_with_limits(&signal, 1.0, 256, 0, limits),
+            Err(NoiseInputError::SpectralLimitExceeded {
+                resource: "working bytes",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn fallible_hann_window_matches_pinned_scirust_method() {
+        let expected = scirust_signal::hanning(256);
+        let actual = fallible_hanning(256).unwrap();
+        assert_eq!(actual, expected);
     }
 }
