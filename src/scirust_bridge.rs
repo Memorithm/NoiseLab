@@ -170,12 +170,13 @@ pub fn gaussian_white_noise(
     params.validate()?;
     validate_sample_count(samples)?;
 
-    let requested_bytes = samples
-        .checked_mul(size_of::<f64>())
-        .ok_or(NoiseInputError::AllocationFailed {
-            resource: "Gaussian output buffer",
-            requested_bytes: usize::MAX,
-        })?;
+    let requested_bytes =
+        samples
+            .checked_mul(size_of::<f64>())
+            .ok_or(NoiseInputError::AllocationFailed {
+                resource: "Gaussian output buffer",
+                requested_bytes: usize::MAX,
+            })?;
     let mut output = Vec::new();
     output
         .try_reserve_exact(samples)
