@@ -70,6 +70,11 @@ pub enum NoiseInputError {
         resource: &'static str,
         requested_bytes: usize,
     },
+    /// A generated numeric output overflowed to NaN or infinity.
+    NonFiniteOutput {
+        operation: &'static str,
+        sample_index: usize,
+    },
     /// SciRust rejected the request.
     Upstream(String),
 }
@@ -102,7 +107,14 @@ impl Display for NoiseInputError {
                 requested_bytes,
             } => write!(
                 f,
-                "failed to allocate {requested_bytes} bytes for spectral {resource}"
+                "failed to allocate {requested_bytes} bytes for {resource}"
+            ),
+            Self::NonFiniteOutput {
+                operation,
+                sample_index,
+            } => write!(
+                f,
+                "{operation} produced a non-finite value at sample {sample_index}"
             ),
             Self::Upstream(message) => write!(f, "SciRust rejected request: {message}"),
         }
@@ -115,21 +127,37 @@ impl Error for NoiseInputError {}
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GaussianNoise {
     /// Standard deviation of the generated process.
-    pub sigma: f64,
+    sigma: f64,
     /// Explicit reproducibility seed.
-    pub seed: u64,
+    seed: u64,
 }
 
 impl GaussianNoise {
     /// Validate and construct Gaussian white-noise parameters.
     pub fn new(sigma: f64, seed: u64) -> Result<Self, NoiseInputError> {
-        if !sigma.is_finite() {
+        let params = Self { sigma, seed };
+        params.validate()?;
+        Ok(params)
+    }
+
+    /// Return the validated standard deviation.
+    pub fn sigma(&self) -> f64 {
+        self.sigma
+    }
+
+    /// Return the explicit reproducibility seed.
+    pub fn seed(&self) -> u64 {
+        self.seed
+    }
+
+    fn validate(&self) -> Result<(), NoiseInputError> {
+        if !self.sigma.is_finite() {
             return Err(NoiseInputError::NonFinite("sigma"));
         }
-        if sigma < 0.0 {
+        if self.sigma < 0.0 {
             return Err(NoiseInputError::NonPositive("sigma"));
         }
-        Ok(Self { sigma, seed })
+        Ok(())
     }
 }
 
@@ -139,11 +167,35 @@ pub fn gaussian_white_noise(
     params: GaussianNoise,
     samples: usize,
 ) -> Result<Vec<f64>, NoiseInputError> {
+    params.validate()?;
     validate_sample_count(samples)?;
+
+    let requested_bytes = samples
+        .checked_mul(size_of::<f64>())
+        .ok_or(NoiseInputError::AllocationFailed {
+            resource: "Gaussian output buffer",
+            requested_bytes: usize::MAX,
+        })?;
+    let mut output = Vec::new();
+    output
+        .try_reserve_exact(samples)
+        .map_err(|_| NoiseInputError::AllocationFailed {
+            resource: "Gaussian output buffer",
+            requested_bytes,
+        })?;
+
     let mut rng = SplitMix64::new(params.seed);
-    Ok((0..samples)
-        .map(|_| params.sigma * rng.next_gaussian())
-        .collect())
+    for sample_index in 0..samples {
+        let value = params.sigma * rng.next_gaussian();
+        if !value.is_finite() {
+            return Err(NoiseInputError::NonFiniteOutput {
+                operation: "Gaussian white-noise scaling",
+                sample_index,
+            });
+        }
+        output.push(value);
+    }
+    Ok(output)
 }
 
 /// Generate an Ornstein-Uhlenbeck path through SciRust's exact transition law.
@@ -355,8 +407,55 @@ mod tests {
     #[test]
     fn gaussian_zero_sigma_is_exact_zero() {
         let params = GaussianNoise::new(0.0, 7).unwrap();
+        assert_eq!(params.sigma(), 0.0);
+        assert_eq!(params.seed(), 7);
         let samples = gaussian_white_noise(params, 64).unwrap();
         assert!(samples.iter().all(|&x| x == 0.0));
+    }
+
+    #[test]
+    fn gaussian_boundary_revalidates_literal_parameters() {
+        let nan = GaussianNoise {
+            sigma: f64::NAN,
+            seed: 1,
+        };
+        assert_eq!(
+            gaussian_white_noise(nan, 1),
+            Err(NoiseInputError::NonFinite("sigma"))
+        );
+
+        let negative = GaussianNoise {
+            sigma: -1.0,
+            seed: 1,
+        };
+        assert_eq!(
+            gaussian_white_noise(negative, 1),
+            Err(NoiseInputError::NonPositive("sigma"))
+        );
+
+        let infinite = GaussianNoise {
+            sigma: f64::INFINITY,
+            seed: 1,
+        };
+        assert_eq!(
+            gaussian_white_noise(infinite, 1),
+            Err(NoiseInputError::NonFinite("sigma"))
+        );
+    }
+
+    #[test]
+    fn gaussian_boundary_rejects_non_finite_generated_output() {
+        let params = GaussianNoise {
+            sigma: f64::MAX,
+            seed: 42,
+        };
+        assert!(matches!(
+            gaussian_white_noise(params, 256),
+            Err(NoiseInputError::NonFiniteOutput {
+                operation: "Gaussian white-noise scaling",
+                ..
+            })
+        ));
     }
 
     #[test]
