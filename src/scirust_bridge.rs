@@ -259,11 +259,7 @@ fn admit_spectral_request(
     limits: SpectralLimits,
 ) -> Result<(), NoiseInputError> {
     require_spectral_limit("signal samples", signal_len, limits.max_signal_samples)?;
-    require_spectral_limit(
-        "segment samples",
-        segment_len,
-        limits.max_segment_samples,
-    )?;
+    require_spectral_limit("segment samples", segment_len, limits.max_segment_samples)?;
 
     let half_spectrum_len = segment_len
         .checked_div(2)
@@ -286,9 +282,11 @@ fn admit_spectral_request(
     let segments = 1 + (signal_len - segment_len) / hop;
     let fft_stages = segment_len.ilog2() as usize;
     let per_segment_work = segment_len
-        .checked_mul(fft_stages.checked_add(3).ok_or(
-            NoiseInputError::SpectralBudgetOverflow("work units"),
-        )?)
+        .checked_mul(
+            fft_stages
+                .checked_add(3)
+                .ok_or(NoiseInputError::SpectralBudgetOverflow("work units"))?,
+        )
         .ok_or(NoiseInputError::SpectralBudgetOverflow("work units"))?;
     let work_units = segments
         .checked_mul(per_segment_work)
@@ -327,8 +325,7 @@ fn fallible_hanning(segment_len: usize) -> Result<Vec<f64>, NoiseInputError> {
 
     let denominator = (segment_len - 1) as f64;
     window.extend(
-        (0..segment_len)
-            .map(|index| 0.5 * (1.0 - (2.0 * PI * index as f64 / denominator).cos())),
+        (0..segment_len).map(|index| 0.5 * (1.0 - (2.0 * PI * index as f64 / denominator).cos())),
     );
     Ok(window)
 }
