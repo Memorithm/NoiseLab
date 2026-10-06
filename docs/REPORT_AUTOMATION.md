@@ -85,9 +85,11 @@ and explicitly selects smoke. It does not invoke a shell to run report binaries.
 The artifact contains source SHA, toolchain/host information, generated
 `Cargo.lock`, the actual resolved Cargo dependency graph, stdout, stderr and the
 validation manifest when all contract checks succeed. The current repository
-has no checked-in Cargo.lock, so dependencies are resolved once and captured for
-that run; builds then use `--locked`. Recording a lockfile is not a claim that
-separate runs always resolve the same registry graph.
+checks in `Cargo.lock`, and the workflow copies that exact file into the
+artifact before running `cargo metadata --locked`. Recording a lockfile is not a
+claim that separate runs always resolve the same registry graph after an
+intentional lockfile update; it makes the graph used by this workflow explicit
+and reviewable.
 
 Artifacts are retained for 14 days and uploaded even after a failed step when
 files exist. This is temporary CI diagnostic retention, not a permanent archive
