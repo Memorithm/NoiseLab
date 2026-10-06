@@ -60,13 +60,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s scripts -p 'test_*.py' -v 2>&1 | tee artifacts/smoke/python-tests.log
-      - name: Resolve and retain the actual dependency graph
+      - name: Verify and retain the checked-in dependency graph
         shell: bash
         run: |
           set -euo pipefail
           rustc -Vv >> artifacts/smoke/provenance.txt
           cargo -V >> artifacts/smoke/provenance.txt
-          cargo generate-lockfile
           cp Cargo.lock artifacts/smoke/Cargo.lock
           sha256sum Cargo.lock >> artifacts/smoke/provenance.txt
           cargo metadata --locked --format-version 1 > artifacts/smoke/cargo-metadata.json
